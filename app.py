@@ -78,8 +78,9 @@ MENU = {
     },
     "✨ Especialidades Mixi": {
         "Gordita": 30.0,
-        "Pambazo de Longaniza": 30.0,
+        "Pambazo de Papa con Longaniza": 30.0,
         "Pambazo de Papa": 30.0,
+        "Pambazo de Longaniza": 30.0,
         "Pambazo Especial (Otro ingrediente)": 35.0
     },
     "🥤 Licuados (1/2 Litro)": {
@@ -213,6 +214,8 @@ with tab_cliente:
             st.session_state.carrito = {}
         if 'notas_productos' not in st.session_state:
             st.session_state.notas_productos = {}
+        if 'ingrediente_pambazo_especial' not in st.session_state:
+            st.session_state.ingrediente_pambazo_especial = {}
 
         for category, productos in MENU.items():
             al_menos_uno_disponible = any(st.session_state.inventario.get(p, True) for p in productos)
@@ -254,6 +257,11 @@ with tab_cliente:
                                     precio_final_prod = 33.0 if "Gordita" in prod else 31.0
                                     agregado_texto = " (Con Quesillo)"
 
+                            elif "Pambazo Especial" in prod:
+                                ing_pambazo = st.text_input("¿De qué ingrediente quieres tu pambazo especial? (Ej. Tinga, Suadero)", placeholder="Escribe el ingrediente aquí", key=f"ing_pamba_{prod}")
+                                if ing_pambazo:
+                                    agregado_texto = f" de {ing_pambazo}"
+
                             st.write(f"**{prod}{agregado_texto}**\n${precio_final_prod:.2f}")
 
                         with col_controles:
@@ -270,7 +278,6 @@ with tab_cliente:
                                 st.session_state.carrito[nombre_clave_carrito] = cant_actual + 1
                                 st.rerun()
                                 
-                            # Si ya se agregó por lo menos uno, mostrar cuadro de texto para notas/especificaciones
                             if cant_actual > 0:
                                 st.session_state.notas_productos[nombre_clave_carrito] = st.text_input(
                                     "Especificación (Ej: sin verdura):",
