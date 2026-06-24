@@ -94,7 +94,6 @@ MENU = {
         "Agua de Sandía (1 L)": 40.0, "Agua de Guayaba (1 L)": 40.0, "Agua de Avena (1 L)": 40.0
     },
     "🥤 Jugos Naturales": {
-        # Modifica estos productos temporales con tus sabores y precios base reales cuando gustes:
         "Jugo Verde": 35.0,
         "Jugo de Naranja": 35.0,
         "Jugo Combinado": 40.0
@@ -131,8 +130,9 @@ if 'inventario' not in st.session_state:
         for prod in productos.keys():
             st.session_state.inventario[prod] = True
 
+# --- SOLUCIÓN AL OPERATIONAL ERROR: timeout=10 para evitar bloqueos concurrentes ---
 def init_db():
-    conn = sqlite3.connect('pedidos_negocio.db')
+    conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS pedidos 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT, nombre TEXT, 
@@ -147,7 +147,7 @@ def init_db():
     conn.close()
 
 def guardar_pedido_db(fecha, nombre, telefono, direccion, pedido, total, metodo_pago):
-    conn = sqlite3.connect('pedidos_negocio.db')
+    conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
     c = conn.cursor()
     c.execute("INSERT INTO pedidos (fecha, nombre, telefono, direccion, pedido, total, estado, metodo_pago, archivado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)",
               (fecha, nombre, telefono, direccion, pedido, total, "Pendiente", metodo_pago))
@@ -157,7 +157,7 @@ def guardar_pedido_db(fecha, nombre, telefono, direccion, pedido, total, metodo_
     return last_id
 
 def consultar_estado_pedido(id_pedido):
-    conn = sqlite3.connect('pedidos_negocio.db')
+    conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
     c = conn.cursor()
     c.execute("SELECT estado, nombre, total, fecha FROM pedidos WHERE id = ?", (id_pedido,))
     res = c.fetchone()
@@ -292,25 +292,31 @@ with tab_cliente:
 
                             st.write(f"**{prod}{agregado_texto}**\n${precio_final_prod:.2f}")
 
+                        # --- OPTIMIZACIÓN HORIZONTAL DE BOTONES (MENOS ESPACIO) ---
                         with col_controles:
                             nombre_clave_carrito = f"{prod}|||{agregado_texto}|||{precio_final_prod}"
                             cant_actual = st.session_state.carrito.get(nombre_clave_carrito, 0)
                             
-                            c1, c2, c3 = st.columns([1, 1, 1])
-                            if c1.button("➖", key=f"sub_{prod}_{agregado_texto}"):
+                            # Usamos proporciones de columna para mantenerlos perfectamente en un solo renglón
+                            btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1])
+                            
+                            if btn_col1.button("➖", key=f"sub_{prod}_{agregado_texto}", use_container_width=True):
                                 if cant_actual > 0:
                                     st.session_state.carrito[nombre_clave_carrito] -= 1
                                     actualizar_memoria_navegador()
                                     st.rerun()
-                            c2.write(f"**{cant_actual}**")
-                            if c3.button("➕", key=f"add_{prod}_{agregado_texto}"):
+                                    
+                            # Centramos visualmente el número de la cantidad
+                            btn_col2.markdown(f"<h4 style='text-align: center; margin: 0;'>{cant_actual}</h4>", unsafe_allow_html=True)
+                            
+                            if btn_col3.button("➕", key=f"add_{prod}_{agregado_texto}", use_container_width=True):
                                 st.session_state.carrito[nombre_clave_carrito] = cant_actual + 1
                                 actualizar_memoria_navegador()
                                 st.rerun()
                                 
                             if cant_actual > 0:
                                 vieja_nota = st.session_state.notas_productos.get(nombre_clave_carrito, "")
-                                nueva_nota = st.text_input("Especificación (Ej: sin hielo):", value=vieja_nota, key=f"nota_input_{nombre_clave_carrito}")
+                                nueva_nota = st.text_input("Especificación:", value=vieja_nota, key=f"nota_input_{nombre_clave_carrito}", placeholder="Ej: sin hielo")
                                 if nueva_nota != vieja_nota:
                                     st.session_state.notas_productos[nombre_clave_carrito] = nueva_nota
                                     actualizar_memoria_navegador()
@@ -468,7 +474,7 @@ with tab_admin:
         st.header("📥 Gestión de Pedidos Activos")
         st.write("Cambia el estado de los pedidos aquí abajo para que los clientes lo vean reflejado en su pantalla en tiempo real:")
         
-        conn = sqlite3.connect('pedidos_negocio.db')
+        conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
         c = conn.cursor()
         c.execute("SELECT id, fecha, nombre, telefono, direccion, pedido, total, estado, metodo_pago FROM pedidos WHERE archivado = 0 ORDER BY id DESC")
         pedidos_activos = c.fetchall()
@@ -498,7 +504,7 @@ with tab_admin:
                         )
                         
                         if nuevo_est != p_est:
-                            conn = sqlite3.connect('pedidos_negocio.db')
+                            conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
                             c = conn.cursor()
                             c.execute("UPDATE pedidos SET estado = ? WHERE id = ?", (nuevo_est, p_id))
                             conn.commit()
@@ -509,7 +515,7 @@ with tab_admin:
                             
                         if p_est in ["Entregado", "Cancelado"]:
                             if st.button("🗂️ Archivar Pedido", key=f"archive_btn_{p_id}", use_container_width=True):
-                                conn = sqlite3.connect('pedidos_negocio.db')
+                                conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
                                 c = conn.cursor()
                                 c.execute("UPDATE pedidos SET archivado = 1 WHERE id = ?", (p_id,))
                                 conn.commit()
