@@ -6,10 +6,30 @@ import time
 import json
 import re
 import urllib.parse
+# Importamos componentes para el JavaScript
+import streamlit.components.v1 as components
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="La Ventanita & Tacos Mixi", page_icon="🌮", layout="centered")
 
+# --- LÓGICA DE SCROLL AUTOMÁTICO ---
+if "scroll_al_top" not in st.session_state:
+    st.session_state.scroll_al_top = False
+
+# Si la señal de scroll está activa, inyectamos el JS y la apagamos
+if st.session_state.scroll_al_top:
+    components.html(
+        """
+        <script>
+            var mainSection = window.parent.document.querySelector('section.main');
+            if (mainSection) {
+                mainSection.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        </script>
+        """,
+        height=0,
+    )
+    st.session_state.scroll_al_top = False
 # --- CREDENCIALES DESDE SECRETOS ---
 TOKEN = st.secrets["TELEGRAM_TOKEN"]
 CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
