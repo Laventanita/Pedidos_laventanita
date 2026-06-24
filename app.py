@@ -62,6 +62,18 @@ MENU = {
         "Cuernito sencillo": 45.0,
         "Cuernito con fruta": 75.0
     },
+    "🍓 Frutas y Cocteles (La Ventanita)": {
+        "Coctel de Mango con Chantilly": 35.0,
+        "Porción de Mango": 35.0,
+        "Porción de Uva": 35.0,
+        "Porción de Jícama": 35.0,
+        "Porción de Piña": 35.0,
+        "Porción de Sandía": 35.0,
+        "Porción de Melón": 35.0,
+        "Porción de Papaya": 35.0,
+        "Porción de Mango con Papaya": 35.0,
+        "Porción de Mango con Uvas": 35.0
+    },
     "🌮 Los Tacos Mixi": {
         "Taco de Pastor": 28.0,
         "Taco de Suadero": 28.0,
@@ -267,6 +279,12 @@ with tab_cliente:
                                 salsa_elegida = st.selectbox("Salsa:", ["Verdes", "Rojos"], key=f"mod_{prod}")
                                 agregado_texto = f" ({salsa_elegida})"
                             
+                            elif "Coctel de Mango" in prod:
+                                tamanio_fruta = st.selectbox("Tamaño:", ["Chico ($35.00)", "Grande (+$15.00)"], key=f"tam_{prod}")
+                                if "Grande" in tamanio_fruta:
+                                    precio_final_prod = 50.0
+                                agregado_texto = f" [{tamanio_fruta} - Con chantilly, miel, granola, fresa y plátano]"
+
                             elif "Taco de" in prod and prod != "Taco de Chuleta":
                                 con_q = st.checkbox("¿Con Quesillo? (+$3.00)", key=f"mod_{prod}")
                                 guarnicion = st.selectbox("Acompañado con:", ["Con papas", "Con nopales", "Papas y Nopales", "Sin guarnición"], key=f"guar_{prod}")
@@ -500,19 +518,17 @@ with tab_admin:
             for ped in pedidos_activos:
                 p_id, p_fecha, p_nombre, p_tel, p_dir, p_det, p_tot, p_est, p_pago = ped
                 
-                with St.container(border=True):
+                with st.container(border=True): 
                     col_det, col_est = st.columns([2, 1])
                     with col_det:
                         st.markdown(f"### 📦 Folio: #{p_id} — {p_nombre}")
                         st.write(f"📅 **Fecha:** {p_fecha}")
                         
-                        # --- MEJORA 3: BOTÓN DINÁMICO PARA ABRIR WHATSAPP DIRECTO CON TEXTO DE CORTESÍA ---
                         msg_whatsapp = f"¡Hola {p_nombre}! Te contactamos de La Ventanita / Tacos Mixi sobre tu pedido con folio #{p_id}."
                         msg_encoded = urllib.parse.quote(msg_whatsapp)
                         url_whatsapp = f"https://wa.me/52{p_tel}?text={msg_encoded}"
                         
                         st.markdown(f"📞 **Teléfono:** {p_tel}")
-                        st.sidebar.markdown(f"") # Espaciador invisible
                         st.link_button("💬 Abrir WhatsApp", url_whatsapp, type="secondary", use_container_width=False)
                         
                         st.write(f"📍 **Dirección:** {p_dir}")
@@ -529,9 +545,9 @@ with tab_admin:
                                 ["Pendiente", "En Cocina", "En Camino", "Entregado", "Cancelado"],
                                 index=["Pendiente", "En Cocina", "En Camino", "Entregado", "Cancelado"].index(p_est)
                             )
-                            guardar_cambio_estado = st.form_submit_button("💾 Actualizar", use_container_width=True)
+                            st.form_submit_button("💾 Actualizar", use_container_width=True)
                             
-                            if guardar_cambio_estado and nuevo_est != p_est:
+                            if st.form_submit_button and nuevo_est != p_est:
                                 conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
                                 c = conn.cursor()
                                 c.execute("UPDATE pedidos SET estado = ? WHERE id = ?", (nuevo_est, p_id))
