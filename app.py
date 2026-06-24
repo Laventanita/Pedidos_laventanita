@@ -12,28 +12,52 @@ TOKEN = st.secrets["TELEGRAM_TOKEN"]
 CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
 
 # --- CONTRASEÑA DEL ADMINISTRADOR ---
-PASSWORD_ADMIN = "admin123" 
+PASSWORD_ADMIN = "1984" 
 
-# --- CONFIGURACIÓN DE ENVÍOS POR CÓDIGO POSTAL ---
-# Mapeamos los CP de Tecámac según las distancias que nos pasaste
+# --- CONFIGURACIÓN MAESTRA DE CÓDIGOS POSTALES (MÁXIMO 10 KM) ---
 MAPA_CODIGOS_POSTALES = {
-    # ZONA 1 (0 a 3 km) - $25
-    "55763": {"nombre": "Ojo de Agua / Real Verona / Real del Cid / Hacienda del Bosque", "costo": 25.0},
-    "55767": {"nombre": "Ozumbilla / San Pedro Atzompa / Margarito F. Ayala", "costo": 25.0},
-    "55765": {"nombre": "Los Héroes Tecámac (Secciones Ozumbilla, II, III)", "costo": 25.0},
+    # --- ZONA 1: Cercana Tecámac (0 a 3 km) - $25.00 ---
+    "55763": {"nombre": "Vitalia / Ojo de Agua / Los Héroes Tecámac", "costo": 25.0},
+    "55764": {"nombre": "Los Héroes Tecámac II / Los Héroes Ozumbilla / Margarito F. Ayala", "costo": 25.0},
+    "55766": {"nombre": "Ampliación Ozumbilla", "costo": 25.0},
+    "55770": {"nombre": "Ojo de Agua / San Pedro Atzompa / Rinconada San Pedro", "costo": 25.0},
+    "55773": {"nombre": "Hacienda Provenzal", "costo": 25.0},
+    "55776": {"nombre": "Lomas de San Pedro Atzompa", "costo": 25.0},
+    "55778": {"nombre": "Ampliación de la Concepción", "costo": 25.0},
+
+    # --- ZONA 2: Media Tecámac (3 a 7 km) - $40.00 ---
+    "55740": {"nombre": "Tecámac Centro / Ejido Santa Ana / El Calvario / Galaxias el Llano", "costo": 40.0},
+    "55743": {"nombre": "Real Granada / Isidro Fabela / Rancho la Luz / La Palma / Hacienda del Bosque / San Nicolás la Redonda", "costo": 40.0},
+    "55744": {"nombre": "San Pedro Potzohuacan", "costo": 40.0},
+    "55745": {"nombre": "Real Granada IV / Reserva Castilla / San Jerónimo Xonacahuacan / Ampliación San Jerónimo", "costo": 40.0},
+    "55748": {"nombre": "San Martín Azcatepec / San José / Jema / San Mateo Tecalco / Ejido de Tecámac / Los Olivos", "costo": 40.0},
+    "55749": {"nombre": "Villa del Real / Sierra Hermosa / Montecarlo / 5 de Mayo / Hueyotenco / Jardines de Tecámac", "costo": 40.0},
+    "55760": {"nombre": "San Francisco Cuautliquixca / Santa María Ozumbilla / Portal Ojo de Agua / Atlautenco / El Calvario", "costo": 40.0},
+    "55768": {"nombre": "Lomas de Ozumbilla / San Antonio / Cuauhtémoc / La Azteca", "costo": 40.0},
+
+    # --- ZONA 3: Lejana Tecámac / Ecatepec Norte Colindante (7 a 10 km) - $55.00 ---
+    "55746": {"nombre": "Rancho la Capilla / Santa Cruz Tecámac / Real Belmonte / Ex Hacienda San Miguel", "costo": 55.0},
+    "55747": {"nombre": "San Pablo Tecalco / San Isidro Citlalcóatl", "costo": 55.0},
+    "55750": {"nombre": "Santa María Ajoloapan / El Tanque", "costo": 55.0},
+    "55752": {"nombre": "San Juan Pueblo Nuevo", "costo": 55.0},
+    "55754": {"nombre": "Paseos de Tecámac / Santo Domingo Ajoloapan / Loma de San Jerónimo", "costo": 55.0},
+    "55755": {"nombre": "Los Reyes Acozac / Buenavista / San Miguel / Progreso / La Campiña", "costo": 55.0},
+    "55757": {"nombre": "San Lucas Xolox / Ejidal", "costo": 55.0},
+    "55758": {"nombre": "Ampliación la Palma (Zona Industrial)", "costo": 55.0},
+    "55765": {"nombre": "Los Héroes San Pablo / Lomas de Tecámac / La Cañada / México Independiente", "costo": 55.0},
     
-    # ZONA 2 (3 a 7 km) - $40
-    "55740": {"nombre": "Tecámac Centro / San Martín Azcatepec", "costo": 40.0},
-    "55743": {"nombre": "Villa del Real / Real del Sol / Real Castell / Real Alcalá", "costo": 40.0},
-    "55744": {"nombre": "Sierra Hermosa / San Francisco Cuautliquixca / Hueyotenco", "costo": 40.0},
-    
-    # ZONA 3 (7 a 10 km) - $55
-    "55746": {"nombre": "San Pablo Tecalco / Los Héroes San Pablo / Real Toscana", "costo": 55.0},
-    "55748": {"nombre": "Real Vizcaya / Santa Cruz Tecámac / Urbi Villa del Campo", "costo": 55.0},
-    "55060": {"nombre": "Santo Tomás Chiconautla / Límites Ecatepec", "costo": 55.0}
+    # Únicos sectores de Ecatepec aceptados dentro del radio límite de 10 km
+    "55060": {"nombre": "Venta de Carpio / La Guadalupana / Los Héroes Ecatepec V", "costo": 55.0},
+    "55063": {"nombre": "Ciudad Cuauhtémoc (Chiconautla 3000)", "costo": 55.0},
+    "55064": {"nombre": "San Isidro Atlautenco / Cd. Cuauhtémoc (Nopalera)", "costo": 55.0},
+    "55065": {"nombre": "Santa Cruz Venta de Carpio", "costo": 55.0},
+    "55066": {"nombre": "Santa María Chiconautla / Santo Tomás Chiconautla / Portal Chiconautla", "costo": 55.0},
+    "55067": {"nombre": "Ciudad Cuauhtémoc (Geo 2000 / Tlaloc / Cuitlahuac)", "costo": 55.0},
+    "55068": {"nombre": "Santo Tomás Chiconautla (Ejido / El Mirador)", "costo": 55.0},
+    "55069": {"nombre": "La Preciosa / Los Pajaritos / La Garita", "costo": 55.0},
 }
 
-# --- INICIALIZAR INVENTARIO EN SESIÓN ---
+# --- INICIALIZAR INVENTARIO EN ESTADO DE SESIÓN ---
 if 'inventario' not in st.session_state:
     st.session_state.inventario = {
         "Chilaquiles chicos (80g)": True, "Chilaquiles medianos (170g)": True, "Chilaquiles para acompañar (250g)": True,
@@ -45,7 +69,7 @@ if 'inventario' not in st.session_state:
         "Agua de Sandía (1 L)": True, "Agua de Guayaba (1 L)": True, "Agua de Avena (1 L)": True
     }
 
-# --- ESTRUCTURA DEL MENÚ REAL ---
+# --- MENÚ DE PLATILLOS ---
 MENU = {
     "☕ Desayunos": {
         "Chilaquiles chicos (80g)": 50.0,
@@ -64,7 +88,7 @@ MENU = {
         "Licuado de Chocolate (1 L)": 70.0,
         "Licuado de Plátano (1 L)": 70.0
     },
-    "🍹 Aguas Frescas (1 Litro) - $40.00": {
+    "🍹 Aguas Frescas (1 Litro)": {
         "Agua de Café (1 L)": 40.0, "Agua de Mazapán (1 L)": 40.0, "Agua de Fresa (1 L)": 40.0,
         "Agua de Limón (1 L)": 40.0, "Agua de Melón (1 L)": 40.0, "Agua de Piña (1 L)": 40.0,
         "Agua de Sandía (1 L)": 40.0, "Agua de Guayaba (1 L)": 40.0, "Agua de Avena (1 L)": 40.0
@@ -98,8 +122,10 @@ def enviar_pedido_telegram(nombre, telefono, direccion, tipo_entrega, costo_envi
     )
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
     payload = {"chat_id": CHAT_ID, "text": mensaje, "parse_mode": "Markdown"}
-    try: requests.post(url, json=payload)
-    except Exception as e: st.error(f"Error en Telegram: {e}")
+    try: 
+        requests.post(url, json=payload)
+    except Exception as e: 
+        st.error(f"Error en Telegram: {e}")
 
 init_db()
 
@@ -141,7 +167,7 @@ with tab_cliente:
                             cant += v
                     col3.write(f"Cant: **{cant}**")
 
-    # Procesar Carrito
+    # Procesar estructura del carrito
     total_productos = 0.0
     detalle_ticket_telegram = ""
     productos_seleccionados = {k: v for k, v in st.session_state.carrito.items() if v > 0}
@@ -168,37 +194,36 @@ with tab_cliente:
         
         st.subheader("👤 Datos para la Entrega")
         
-        # Formulario Unificado
         with st.form("formulario_envio", clear_on_submit=True):
             nombre_cli = st.text_input("Nombre Completo *")
             telefono_cli = st.text_input("Teléfono de Contacto (WhatsApp) *")
             
-            # Selector de tipo de servicio primero
-            tipo_entrega_opcion = st.selectbox("Método de Entrega *", ["--- Selecciona método ---", "🛵 Envío a Domicilio", "🛍️ Pasar a recoger al local"])
+            tipo_entrega_opcion = st.selectbox("Método de Entrega *", ["🛵 Envío a Domicilio", "🛍️ Pasar a recoger al local"])
             
             costo_envio = 0.0
-            zona_detectada = ""
-            cp_cli = ""
-            direccion_cli = ""
+            tipo_entrega_txt = ""
             
             if tipo_entrega_opcion == "🛵 Envío a Domicilio":
-                cp_cli = st.text_input("Código Postal (5 dígitos) *", max_chars=5)
+                cp_cli = st.text_input("Código Postal (5 dígitos obligatorio) *", max_chars=5)
                 direccion_cli = st.text_area("Dirección Completa (Calle, Número, Colonia, Referencias) *")
                 
-                # Validar el CP en tiempo real
                 if cp_cli:
                     if cp_cli in MAPA_CODIGOS_POSTALES:
                         costo_envio = MAPA_CODIGOS_POSTALES[cp_cli]["costo"]
-                        zona_detectada = MAPA_CODIGOS_POSTALES[cp_cli]["nombre"]
-                        st.success(f"📍 Zona identificada: {zona_detectada} (Costo Envío: ${costo_envio:.2f})")
+                        zona_nombre = MAPA_CODIGOS_POSTALES[cp_cli]["nombre"]
+                        tipo_entrega_txt = f"Domicilio (CP {cp_cli} - {zona_nombre})"
+                        st.success(f"📍 Zona de Reparto Validada: {zona_nombre} (Costo: ${costo_envio:.2f})")
                     else:
-                        st.error("⚠️ Lo sentimos, este Código Postal está fuera de nuestro radio de cobertura de entrega.")
-                        costo_envio = None # Bloquear el envío
-            
-            elif tipo_entrega_opcion == "🛍️ Pasar a recoger al local":
-                direccion_cli = "Cliente pasará a recoger al local"
-                st.info("🛍️ Elegiste recoger en sucursal. No se aplicará costo de envío.")
+                        costo_envio = None # Bloqueado automáticamente por falta de rango
+                        st.error("❌ Fuera de Cobertura: El Código Postal excede el radio máximo de 10 km permitido.")
+                else:
+                    costo_envio = 0.0
+            else:
+                cp_cli = "Local"
+                direccion_cli = "Cliente pasará a recoger directamente al local"
                 costo_envio = 0.0
+                tipo_entrega_txt = "Recoger en Local"
+                st.info("🛍️ Pasarás a recoger. No se te cobrará comisión de envío.")
             
             st.markdown("---")
             st.markdown("🚴‍♂️ **Propina para el Repartidor** (Opcional)")
@@ -218,18 +243,16 @@ with tab_cliente:
             enviar_pedido = st.form_submit_button("🚀 Confirmar y Enviar Pedido")
             
             if enviar_pedido:
-                if tipo_entrega_opcion == "--- Selecciona método ---":
-                    st.error("Por favor, selecciona si deseas envío a domicilio o recoger en local.")
+                if tipo_entrega_opcion == "🛵 Envío a Domicilio" and not cp_cli:
+                    st.error("⚠️ El Código Postal es estrictamente obligatorio para envíos a domicilio.")
                 elif costo_envio is None:
-                    st.error("No se puede enviar el pedido debido a que el Código Postal no tiene cobertura.")
-                elif not nombre_cli or not telefono_cli or (tipo_entrega_opcion == "🛵 Envío a Domicilio" and (not cp_cli or not direccion_cli)):
-                    st.error("Por favor, rellena todos los campos obligatorios (*).")
+                    st.error("❌ No es posible procesar el pedido. La dirección se encuentra fuera de cobertura.")
+                elif not nombre_cli or not telefono_cli or (tipo_entrega_opcion == "🛵 Envío a Domicilio" and not direccion_cli):
+                    st.error("⚠️ Por favor completa los campos marcados con asterisco (*).")
                 else:
                     fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     total_final = total_productos + costo_envio + valor_propina
                     
-                    # Guardado local
-                    tipo_entrega_txt = f"Domicilio (CP {cp_cli})" if tipo_entrega_opcion == "🛵 Envío a Domicilio" else "Recoger Local"
                     conn = sqlite3.connect('pedidos_negocio.db')
                     c = conn.cursor()
                     c.execute("INSERT INTO pedidos (fecha, nombre, telefono, direccion, pedido, total, estado) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -242,15 +265,17 @@ with tab_cliente:
                     st.session_state.carrito = {}
                     time.sleep(2)
                     st.rerun()
-                    
-        # Resumen dinámico abajo de la pantalla
-        if tipo_entrega_opcion != "--- Selecciona método ---" and costo_envio is not None:
+
+        # Resumen del cobro en vivo
+        if costo_envio is not None:
             total_informativo = total_productos + costo_envio + valor_propina
             st.markdown(f"**Resumen de Cuenta:**")
             st.write(f"• Productos: ${total_productos:.2f}")
-            st.write(f"• Envío: ${costo_envio:.2f}")
+            if tipo_entrega_opcion == "🛵 Envío a Domicilio" and cp_cli in MAPA_CODIGOS_POSTALES:
+                st.write(f"• Envío (CP {cp_cli}): ${costo_envio:.2f}")
             if valor_propina > 0: st.write(f"• Propina: ${valor_propina:.2f}")
             st.markdown(f"### **Total Final: ${total_informativo:.2f}**")
+
     else:
         st.info("El carrito está vacío. Agrega tus platillos usando el botón ➕ de arriba.")
 
@@ -263,7 +288,7 @@ with tab_admin:
     
     if password_input == PASSWORD_ADMIN:
         st.success("Acceso Autorizado")
-        st.write("Apaga los productos que no estés vendiendo en este momento o que se hayan terminado:")
+        st.write("Desactiva los productos agotados para ocultarlos temporalmente del menú de los clientes:")
         
         for categoria, productos in MENU.items():
             st.markdown(f"### {categoria}")
