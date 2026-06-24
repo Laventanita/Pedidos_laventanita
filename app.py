@@ -14,50 +14,23 @@ CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
 # --- CONTRASEÑA DEL ADMINISTRADOR ---
 PASSWORD_ADMIN = "admin123" 
 
-# --- DICIONARIO DE COLONIAS Y COSTOS DE ENVÍO ---
-COLONIAS_ENVIO = {
-    "--- Selecciona tu Colonia o Fraccionamiento ---": None,
-    "🛍️ Pasar a recoger al local ($0)": 0.0,
+# --- CONFIGURACIÓN DE ENVÍOS POR CÓDIGO POSTAL ---
+# Mapeamos los CP de Tecámac según las distancias que nos pasaste
+MAPA_CODIGOS_POSTALES = {
+    # ZONA 1 (0 a 3 km) - $25
+    "55763": {"nombre": "Ojo de Agua / Real Verona / Real del Cid / Hacienda del Bosque", "costo": 25.0},
+    "55767": {"nombre": "Ozumbilla / San Pedro Atzompa / Margarito F. Ayala", "costo": 25.0},
+    "55765": {"nombre": "Los Héroes Tecámac (Secciones Ozumbilla, II, III)", "costo": 25.0},
     
-    # ZONA 1: Cercana (0 a 3 km) - $25
-    "Ampliación Ozumbilla ($25)": 25.0,
-    "Santa Maria Ozumbilla ($25)": 25.0,
-    "Los Héroes Tecámac Secc. Ozumbilla ($25)": 25.0,
-    "Los Héroes Tecámac II ($25)": 25.0,
-    "Los Héroes Tecámac III ($25)": 25.0,
-    "Los Héroes (Secc. Bosques, Jardines o Flores) ($25)": 25.0,
-    "San Pedro Atzompa Pueblo ($25)": 25.0,
-    "Ampliación San Pedro Atzompa ($25)": 25.0,
-    "Ojo de Agua (Zona Residencial) ($25)": 25.0,
-    "Colinas de Ojo de Agua ($25)": 25.0,
-    "Fraccionamientos aledaños a Ojo de Agua ($25)": 25.0,
-    "Conjunto Urbano Real Verona ($25)": 25.0,
-    "Real del Cid ($25)": 25.0,
-    "Hacienda del Bosque ($25)": 25.0,
-    "Margarito F. Ayala ($25)": 25.0,
+    # ZONA 2 (3 a 7 km) - $40
+    "55740": {"nombre": "Tecámac Centro / San Martín Azcatepec", "costo": 40.0},
+    "55743": {"nombre": "Villa del Real / Real del Sol / Real Castell / Real Alcalá", "costo": 40.0},
+    "55744": {"nombre": "Sierra Hermosa / San Francisco Cuautliquixca / Hueyotenco", "costo": 40.0},
     
-    # ZONA 2: Media (3 a 7 km) - $40
-    "San Martín Azcatepec ($40)": 40.0,
-    "San Francisco Cuautliquixca ($40)": 40.0,
-    "Tecámac de Felipe Villanueva Centro ($40)": 40.0,
-    "Sierra Hermosa Pueblo ($40)": 40.0,
-    "Conjunto Urbano Sierra Hermosa ($40)": 40.0,
-    "Villa del Real ($40)": 40.0,
-    "Real del Sol ($40)": 40.0,
-    "Real Castell ($40)": 40.0,
-    "Real Alcalá ($40)": 40.0,
-    "San Antonio Hueyotenco ($40)": 40.0,
-    
-    # ZONA 3: Lejana (7 a 10 km) - $55
-    "San Pablo Tecalco ($55)": 55.0,
-    "Los Héroes San Pablo ($55)": 55.0,
-    "Real Toscana ($55)": 55.0,
-    "Real Vizcaya ($55)": 55.0,
-    "Santa Cruz Tecámac (Rancho la Capilla) ($55)": 55.0,
-    "Urbi Villa del Campo (Valle San Pedro) ($55)": 55.0,
-    "Paseos de Tecámac ($55)": 55.0,
-    "Paseos del Bosque ($55)": 55.0,
-    "Santo Tomás Chiconautla ($55)": 55.0
+    # ZONA 3 (7 a 10 km) - $55
+    "55746": {"nombre": "San Pablo Tecalco / Los Héroes San Pablo / Real Toscana", "costo": 55.0},
+    "55748": {"nombre": "Real Vizcaya / Santa Cruz Tecámac / Urbi Villa del Campo", "costo": 55.0},
+    "55060": {"nombre": "Santo Tomás Chiconautla / Límites Ecatepec", "costo": 55.0}
 }
 
 # --- INICIALIZAR INVENTARIO EN SESIÓN ---
@@ -98,7 +71,6 @@ MENU = {
     }
 }
 
-# --- BASE DE DATOS LOCAL ---
 def init_db():
     conn = sqlite3.connect('pedidos_negocio.db')
     c = conn.cursor()
@@ -108,14 +80,13 @@ def init_db():
     conn.commit()
     conn.close()
 
-def enviar_pedido_telegram(nombre, telefono, direccion, colonia, costo_envio, propina_txt, detalle, total):
-    tipo_entrega = "🛍️ Pasar a recoger al local" if costo_envio == 0 else f"🛵 Servicio a Domicilio ({colonia})"
+def enviar_pedido_telegram(nombre, telefono, direccion, tipo_entrega, costo_envio, propina_txt, detalle, total):
     mensaje = (
         f"🔔 *¡NUEVO PEDIDO CONFIRMADO!*\n"
         f"----------------------------------------\n"
         f"👤 *Cliente:* {nombre}\n"
         f"📞 *Teléfono:* {telefono}\n"
-        f"🛵 *Entrega:* {tipo_entrega}\n"
+        f"🛵 *Tipo Entrega:* {tipo_entrega}\n"
         f"📍 *Dirección:* {direccion}\n"
         f"----------------------------------------\n"
         f"📝 *Detalle del Pedido:*\n"
@@ -132,7 +103,6 @@ def enviar_pedido_telegram(nombre, telefono, direccion, colonia, costo_envio, pr
 
 init_db()
 
-# --- PESTAÑAS ---
 tab_cliente, tab_admin = st.tabs(["📋 Menú para Clientes", "🔐 Panel Administrador"])
 
 # =====================================================================
@@ -147,7 +117,6 @@ with tab_cliente:
 
     for categoria, productos in MENU.items():
         al_menos_uno_disponible = any(st.session_state.inventario.get(p, True) for p in productos)
-        
         if al_menos_uno_disponible:
             with st.expander(f"{categoria}", expanded=True):
                 for prod, precio in productos.items():
@@ -199,31 +168,46 @@ with tab_cliente:
         
         st.subheader("👤 Datos para la Entrega")
         
-        # Formulario unificado
+        # Formulario Unificado
         with st.form("formulario_envio", clear_on_submit=True):
             nombre_cli = st.text_input("Nombre Completo *")
             telefono_cli = st.text_input("Teléfono de Contacto (WhatsApp) *")
             
-            # El selector de Colonia ahora va integrado adentro del formulario del cliente
-            colonia_seleccionada = st.selectbox("Selecciona tu Colonia o Fraccionamiento *", list(COLONIAS_ENVIO.keys()))
-            costo_envio = COLONIAS_ENVIO[colonia_seleccionada]
+            # Selector de tipo de servicio primero
+            tipo_entrega_opcion = st.selectbox("Método de Entrega *", ["--- Selecciona método ---", "🛵 Envío a Domicilio", "🛍️ Pasar a recoger al local"])
             
-            # Dirección dinámica según la colonia
-            if costo_envio == 0:
-                direccion_cli = "Pasará a recoger al local"
-                st.info("🛍️ Elegiste pasar a recoger. No necesitas poner dirección.")
-            else:
+            costo_envio = 0.0
+            zona_detectada = ""
+            cp_cli = ""
+            direccion_cli = ""
+            
+            if tipo_entrega_opcion == "🛵 Envío a Domicilio":
+                cp_cli = st.text_input("Código Postal (5 dígitos) *", max_chars=5)
                 direccion_cli = st.text_area("Dirección Completa (Calle, Número, Colonia, Referencias) *")
                 
+                # Validar el CP en tiempo real
+                if cp_cli:
+                    if cp_cli in MAPA_CODIGOS_POSTALES:
+                        costo_envio = MAPA_CODIGOS_POSTALES[cp_cli]["costo"]
+                        zona_detectada = MAPA_CODIGOS_POSTALES[cp_cli]["nombre"]
+                        st.success(f"📍 Zona identificada: {zona_detectada} (Costo Envío: ${costo_envio:.2f})")
+                    else:
+                        st.error("⚠️ Lo sentimos, este Código Postal está fuera de nuestro radio de cobertura de entrega.")
+                        costo_envio = None # Bloquear el envío
+            
+            elif tipo_entrega_opcion == "🛍️ Pasar a recoger al local":
+                direccion_cli = "Cliente pasará a recoger al local"
+                st.info("🛍️ Elegiste recoger en sucursal. No se aplicará costo de envío.")
+                costo_envio = 0.0
+            
             st.markdown("---")
-            st.markdown("🚴‍♂️ **Propina para el Repartidor** (Opcional - Apoya a quien te lleva tu comida)")
+            st.markdown("🚴‍♂️ **Propina para el Repartidor** (Opcional)")
             opcion_propina = st.radio(
                 "¿Deseas agregar propina?",
                 ["No agregar por ahora", "$10.00", "$15.00", "$20.00", "Dar en efectivo al recibir"],
                 horizontal=True
             )
             
-            # Calcular valor monetario de la propina
             valor_propina = 0.0
             propina_mensaje_telegram = "No asignada"
             if "10" in opcion_propina: valor_propina = 10.0; propina_mensaje_telegram = "$10.00"
@@ -234,37 +218,39 @@ with tab_cliente:
             enviar_pedido = st.form_submit_button("🚀 Confirmar y Enviar Pedido")
             
             if enviar_pedido:
-                # Candado de validaciones: obliga a que se seleccione una colonia real
-                if costo_envio is None:
-                    st.error("Por favor, selecciona una Colonia o Fraccionamiento válido de la lista.")
-                elif not nombre_cli or not telefono_cli or (costo_envio > 0 and not direccion_cli):
+                if tipo_entrega_opcion == "--- Selecciona método ---":
+                    st.error("Por favor, selecciona si deseas envío a domicilio o recoger en local.")
+                elif costo_envio is None:
+                    st.error("No se puede enviar el pedido debido a que el Código Postal no tiene cobertura.")
+                elif not nombre_cli or not telefono_cli or (tipo_entrega_opcion == "🛵 Envío a Domicilio" and (not cp_cli or not direccion_cli)):
                     st.error("Por favor, rellena todos los campos obligatorios (*).")
                 else:
                     fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     total_final = total_productos + costo_envio + valor_propina
                     
+                    # Guardado local
+                    tipo_entrega_txt = f"Domicilio (CP {cp_cli})" if tipo_entrega_opcion == "🛵 Envío a Domicilio" else "Recoger Local"
                     conn = sqlite3.connect('pedidos_negocio.db')
                     c = conn.cursor()
                     c.execute("INSERT INTO pedidos (fecha, nombre, telefono, direccion, pedido, total, estado) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                              (fecha_actual, nombre_cli, telefono_cli, f"{colonia_seleccionada} - {direccion_cli}", detalle_ticket_telegram, total_final, "Pendiente"))
+                              (fecha_actual, nombre_cli, telefono_cli, f"[{tipo_entrega_txt}] {direccion_cli}", detalle_ticket_telegram, total_final, "Pendiente"))
                     conn.commit()
                     conn.close()
                     
-                    enviar_pedido_telegram(nombre_cli, telefono_cli, direccion_cli, colonia_seleccionada, costo_envio, propina_mensaje_telegram, detalle_ticket_telegram, total_final)
+                    enviar_pedido_telegram(nombre_cli, telefono_cli, direccion_cli, tipo_entrega_txt, costo_envio, propina_mensaje_telegram, detalle_ticket_telegram, total_final)
                     st.success("¡Tu pedido ha sido enviado a la cocina con éxito!")
                     st.session_state.carrito = {}
                     time.sleep(2)
                     st.rerun()
                     
-        # Vista informativa de precios abajo del formulario
-        if costo_envio is not None:
+        # Resumen dinámico abajo de la pantalla
+        if tipo_entrega_opcion != "--- Selecciona método ---" and costo_envio is not None:
             total_informativo = total_productos + costo_envio + valor_propina
             st.markdown(f"**Resumen de Cuenta:**")
             st.write(f"• Productos: ${total_productos:.2f}")
             st.write(f"• Envío: ${costo_envio:.2f}")
             if valor_propina > 0: st.write(f"• Propina: ${valor_propina:.2f}")
             st.markdown(f"### **Total Final: ${total_informativo:.2f}**")
-
     else:
         st.info("El carrito está vacío. Agrega tus platillos usando el botón ➕ de arriba.")
 
