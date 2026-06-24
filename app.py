@@ -64,15 +64,15 @@ MENU = {
     },
     "🍓 Frutas y Cocteles (La Ventanita)": {
         "Coctel de Mango con Chantilly": 35.0,
-        "Porción de Mango": 35.0,
-        "Porción de Uva": 35.0,
-        "Porción de Jícama": 35.0,
-        "Porción de Piña": 35.0,
-        "Porción de Sandía": 35.0,
-        "Porción de Melón": 35.0,
-        "Porción de Papaya": 35.0,
-        "Porción de Mango con Papaya": 35.0,
-        "Porción de Mango con Uvas": 35.0
+        "Vaso de Mango": 35.0,
+        "Vaso de Uva": 35.0,
+        "Vaso de Jícama": 35.0,
+        "Vaso de Piña": 35.0,
+        "Vaso de Sandía": 35.0,
+        "Vaso de Melón": 35.0,
+        "Vaso de Papaya": 35.0,
+        "Vaso de Mango con Papaya": 35.0,
+        "Vaso de Mango con Uvas": 35.0
     },
     "🌮 Los Tacos Mixi": {
         "Taco de Pastor": 28.0,
