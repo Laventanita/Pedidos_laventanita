@@ -102,7 +102,6 @@ def init_db():
     columnas = [col[1] for col in c.fetchall()]
     if "metodo_pago" not in columnas:
         c.execute("ALTER TABLE pedidos ADD COLUMN metodo_pago TEXT DEFAULT 'No especificado'")
-    # Columna para archivar/ocultar pedidos del panel activo
     if "archivado" not in columnas:
         c.execute("ALTER TABLE pedidos ADD COLUMN archivado INTEGER DEFAULT 0")
         
@@ -183,18 +182,20 @@ with tab_cliente:
                 elif estado_actual == "En Cocina":
                     st.info("🍳 **Estado:** ¡El chef tiene tu pedido! Tus platillos se están preparando en este momento.")
                 elif estado_actual == "En Camino":
-                    st.success("🛵 **Estado:** ¡Tu pedido va en camino! El repartidor se dirige a tu domicilio (Lleva terminal si así lo solicitaste).")
+                    st.success("🛵 **Estado:** ¡Tu pedido va en camino! El repartidor se dirige a tu domicilio.")
                 elif estado_actual == "Entregado":
                     st.success("✅ **Estado:** ¡Pedido entregado con éxito! Muchas gracias por tu preferencia. ¡Buen provecho!")
 
             st.write(f"**Monto a pagar al recibir:** ${total_c:.2f}")
             st.markdown("---")
-            if st.button("🔄 Actualizar Estatus"):
-                st.rerun()
-                
+            
             if st.button("🛒 Hacer un nuevo pedido"):
                 del st.session_state.rastreo_id
                 st.rerun()
+
+            # Mecanismo de auto-refresco discreto para el cliente (cada 12 segundos)
+            time.sleep(12)
+            st.rerun()
         else:
             del st.session_state.rastreo_id
             st.rerun()
@@ -372,9 +373,9 @@ with tab_admin:
         st.header("📥 Gestión de Pedidos Activos")
         st.write("Cambia el estado de los pedidos aquí abajo para que los clientes lo vean reflejado en su pantalla en tiempo real:")
         
+        # Leemos los datos actuales de la DB antes de pintar el contenedor dinámico
         conn = sqlite3.connect('pedidos_negocio.db')
         c = conn.cursor()
-        # Solo traer los pedidos que NO estén archivados (archivado = 0)
         c.execute("SELECT id, fecha, nombre, telefono, direccion, pedido, total, estado, metodo_pago FROM pedidos WHERE archivado = 0 ORDER BY id DESC")
         pedidos_activos = c.fetchall()
         conn.close()
@@ -413,7 +414,6 @@ with tab_admin:
                             time.sleep(0.5)
                             st.rerun()
                             
-                        # BOTÓN DINÁMICO: Aparece únicamente si el pedido ya está Entregado o Cancelado
                         if p_est in ["Entregado", "Cancelado"]:
                             if st.button("🗂️ Archivar Pedido", key=f"archive_btn_{p_id}", use_container_width=True):
                                 conn = sqlite3.connect('pedidos_negocio.db')
@@ -435,6 +435,10 @@ with tab_admin:
                 estado_actual = st.session_state.inventario.get(prod, True)
                 nuevo_estado = st.toggle(f"Disponible: {prod}", value=estado_actual, key=f"switch_{prod}")
                 st.session_state.inventario[prod] = nuevo_estado
+
+        # Mecanismo de auto-refresco discreto para el administrador (cada 15 segundos)
+        time.sleep(15)
+        st.rerun()
                 
     elif password_input != "":
         st.error("Contraseña incorrecta.")
