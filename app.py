@@ -94,16 +94,17 @@ MENU = {
 def init_db():
     conn = sqlite3.connect('pedidos_negocio.db')
     c = conn.cursor()
-    # Crear la tabla base si no existe
     c.execute('''CREATE TABLE IF NOT EXISTS pedidos 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT, nombre TEXT, 
                   telefono TEXT, direccion TEXT, pedido TEXT, total REAL, estado TEXT)''')
     
-    # Migración automática segura: Verifica si falta la columna metodo_pago y la añade si es necesario
     c.execute("PRAGMA table_info(pedidos)")
     columnas = [col[1] for col in c.fetchall()]
     if "metodo_pago" not in columnas:
         c.execute("ALTER TABLE pedidos ADD COLUMN metodo_pago TEXT DEFAULT 'No especificado'")
+    # Columna para archivar/ocultar pedidos del panel activo
+    if "archivado" not in columnas:
+        c.execute("ALTER TABLE pedidos ADD COLUMN archivado INTEGER DEFAULT 0")
         
     conn.commit()
     conn.close()
@@ -111,7 +112,7 @@ def init_db():
 def guardar_pedido_db(fecha, nombre, telefono, direccion, pedido, total, metodo_pago):
     conn = sqlite3.connect('pedidos_negocio.db')
     c = conn.cursor()
-    c.execute("INSERT INTO pedidos (fecha, nombre, telefono, direccion, pedido, total, estado, metodo_pago) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    c.execute("INSERT INTO pedidos (fecha, nombre, telefono, direccion, pedido, total, estado, metodo_pago, archivado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)",
               (fecha, nombre, telefono, direccion, pedido, total, "Pendiente", metodo_pago))
     last_id = c.lastrowid
     conn.commit()
@@ -373,7 +374,8 @@ with tab_admin:
         
         conn = sqlite3.connect('pedidos_negocio.db')
         c = conn.cursor()
-        c.execute("SELECT id, fecha, nombre, telefono, direccion, pedido, total, estado, metodo_pago FROM pedidos ORDER BY id DESC LIMIT 10")
+        # Solo traer los pedidos que NO estén archivados (archivado = 0)
+        c.execute("SELECT id, fecha, nombre, telefono, direccion, pedido, total, estado, metodo_pago FROM pedidos WHERE archivado = 0 ORDER BY id DESC")
         pedidos_activos = c.fetchall()
         conn.close()
         
@@ -410,8 +412,20 @@ with tab_admin:
                             st.toast(f"¡Pedido #{p_id} actualizado a {nuevo_est}!")
                             time.sleep(0.5)
                             st.rerun()
+                            
+                        # BOTÓN DINÁMICO: Aparece únicamente si el pedido ya está Entregado o Cancelado
+                        if p_est in ["Entregado", "Cancelado"]:
+                            if st.button("🗂️ Archivar Pedido", key=f"archive_btn_{p_id}", use_container_width=True):
+                                conn = sqlite3.connect('pedidos_negocio.db')
+                                c = conn.cursor()
+                                c.execute("UPDATE pedidos SET archivado = 1 WHERE id = ?", (p_id,))
+                                conn.commit()
+                                conn.close()
+                                st.toast(f"Pedido #{p_id} guardado en el archivo histórico.")
+                                time.sleep(0.5)
+                                st.rerun()
         else:
-            st.info("No hay pedidos registrados el día de hoy en la base de datos.")
+            st.info("No tienes ningún pedido activo en este momento.")
             
         st.markdown("---")
         st.header("🥦 Control de Disponibilidad del Menú")
