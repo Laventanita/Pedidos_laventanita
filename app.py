@@ -27,7 +27,7 @@ MAPA_CODIGOS_POSTALES = {
     "55776": {"nombre": "Lomas de San Pedro Atzompa", "costo": 25.0},
     "55778": {"nombre": "Ampliación de la Concepción", "costo": 25.0},
     "55740": {"nombre": "Tecámac Centro / Ejido Santa Ana / El Calvario / Galaxias el Llano", "costo": 40.0},
-    "55743": {"nombre": "Real Granada / Rancho la Luz / Hacienda del Bosque", "costo": 40.0},
+    "55743": {"nombre": "Rancho la Luz / Hacienda del Bosque", "costo": 40.0},
     "55744": {"nombre": "San Pedro Potzohuacan", "costo": 40.0},
     "55745": {"nombre": "Real Granada IV / San Jerónimo Xonacahuacan", "costo": 40.0},
     "55748": {"nombre": "San Martín Azcatepec / San Mateo Tecalco / Los Olivos", "costo": 40.0},
@@ -113,7 +113,7 @@ MENU = {
     }
 }
 
-# --- PERSISTENCIA AUTOMÁTICA Y ESTADOS MAESTROS ---
+# --- PERSISTENCIA AUTOMÁTICA Y ESTADOS MAESTROS CORREGIDOS ---
 if 'carrito' not in st.session_state:
     if "rec_cart" in st.query_params:
         try: st.session_state.carrito = json.loads(st.query_params["rec_cart"])
@@ -132,10 +132,15 @@ if 'datos_cliente_persistentes' not in st.session_state:
         except: st.session_state.datos_cliente_persistentes = {"nombre": "", "tel": "", "dir": "", "cp": ""}
     else: st.session_state.datos_cliente_persistentes = {"nombre": "", "tel": "", "dir": "", "cp": ""}
 
+# LÓGICA DE PROTECCIÓN PARA EVITAR RASTREOS ACCIDENTALES COMPARTIDOS
 if 'rastreo_id' not in st.session_state:
     if "tracking_id" in st.query_params:
-        try: st.session_state.rastreo_id = int(st.query_params["tracking_id"])
-        except: pass
+        try: 
+            st.session_state.rastreo_id = int(st.query_params["tracking_id"])
+            # Limpiamos inmediatamente de la URL visible para evitar copias cruzadas
+            del st.query_params["tracking_id"]
+        except: 
+            pass
 
 def init_db():
     conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
@@ -144,11 +149,9 @@ def init_db():
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT, nombre TEXT, 
                   telefono TEXT, direccion TEXT, pedido TEXT, total REAL, estado TEXT)''')
     
-    # Tabla para guardar el estado maestro de apertura del negocio
     c.execute('''CREATE TABLE IF NOT EXISTS configuracion 
                  (clave TEXT PRIMARY KEY, valor TEXT)''')
     
-    # Inicializar el negocio como abierto por defecto si no existe registro
     c.execute("INSERT OR IGNORE INTO configuracion (clave, valor) VALUES ('sistema_abierto', 'True')")
     
     c.execute("PRAGMA table_info(pedidos)")
@@ -160,7 +163,6 @@ def init_db():
     conn.commit()
     conn.close()
 
-# Funciones de lectura/escritura para el botón de cerrado maestro
 def obtener_estado_sistema_db():
     conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
     c = conn.cursor()
@@ -221,15 +223,16 @@ def enviar_pedido_telegram(id_pedido, nombre, telefono, direccion, tipo_entrega,
 
 init_db()
 
-# Cargar el estado maestro desde la base de datos centralizada
+# Cargar el estado maestro en tiempo real desde la DB SQLite compartida
 sistema_abierto_real = obtener_estado_sistema_db()
 
 def actualizar_memoria_navegador():
-    st.query_params["rec_cart"] = json.dumps(st.session_state.carrito)
-    st.query_params["rec_notes"] = json.dumps(st.session_state.notas_productos)
-    st.query_params["rec_user"] = json.dumps(st.session_state.datos_cliente_persistentes)
-    if 'rastreo_id' in st.session_state:
-        st.query_params["tracking_id"] = str(st.session_state.rastreo_id)
+    try:
+        st.query_params["rec_cart"] = json.dumps(st.session_state.carrito)
+        st.query_params["rec_notes"] = json.dumps(st.session_state.notas_productos)
+        st.query_params["rec_user"] = json.dumps(st.session_state.datos_cliente_persistentes)
+    except Exception:
+        pass
 
 if 'inventario' not in st.session_state:
     st.session_state.inventario = {}
@@ -271,23 +274,27 @@ with tab_cliente:
 
             st.write(f"**Monto a pagar al recibir:** ${total_c:.2f}")
             st.markdown("---")
-            if st.button("🛒 Hacer un nuevo pedido"):
+            
+            # Botones de control de flujo optimizados
+            col_refrescar, col_nuevo = st.columns(2)
+            if col_refrescar.button("🔄 Actualizar Estatus Ahora", use_container_width=True):
+                st.rerun()
+                
+            if col_nuevo.button("🛒 Hacer un nuevo pedido", use_container_width=True):
                 del st.session_state.rastreo_id
                 st.query_params.clear()
                 st.rerun()
 
-            time.sleep(12)
+            # Autorefresh lento y controlado solo en la pantalla de rastreo para no saturar
+            time.sleep(30)
             st.rerun()
         else:
             del st.session_state.rastreo_id
-            if "tracking_id" in st.query_params:
-                del st.query_params["tracking_id"]
             st.rerun()
             
     else:
         st.title("La Ventanita & Tacos Mixi")
         
-        # VALIDACIÓN DE ESTADO ABIERTO/CERRADO DESDE LA DB MAESTRA
         if not sistema_abierto_real:
             st.error("🛑 **LO SENTIMOS, NUESTRA COCINA SE ENCUENTRA CERRADA POR EL MOMENTO.**")
             st.info("Puedes revisar nuestro menú aquí abajo, pero la toma de pedidos y el envío de carritos están deshabilitados hasta nuestra próxima apertura. ¡Gracias por tu comprensión!")
@@ -399,7 +406,6 @@ with tab_cliente:
 
         productos_seleccionados = {k: v for k, v in st.session_state.carrito.items() if v > 0}
 
-        # Si el negocio cerró mientras tenía cosas en el carrito, se vacía automáticamente
         if productos_seleccionados and not sistema_abierto_real:
             st.session_state.carrito = {}
             st.rerun()
@@ -517,8 +523,6 @@ with tab_cliente:
                 enviar_pedido = st.form_submit_button("🚀 CONFIRMAR Y ENVIAR PEDIDO A LA COCINA")
                 
                 if enviar_pedido:
-                    # FILTRO DE SEGURIDAD MÁXIMO DE SEGUNDO PLANO
-                    # Validamos el estado real en la base de datos justo al presionar el botón
                     estado_actual_db = obtener_estado_sistema_db()
                     
                     if not estado_actual_db:
@@ -544,12 +548,14 @@ with tab_cliente:
                             id_nuevo_pedido = guardar_pedido_db(fecha_actual, nombre_cli, telefono_limpio, dir_final, detalle_ticket_texto, total_final, cambio_txt)
                             enviar_pedido_telegram(id_nuevo_pedido, nombre_cli, telefono_limpio, direccion_cli if direccion_cli else "Recoge en Local", tipo_entrega_txt, costo_envio, propina_mensaje_telegram, detalle_ticket_texto, total_final, cambio_txt)
                             
+                            # Fijar sesión interna
                             st.session_state.rastreo_id = id_nuevo_pedido
                             st.session_state.carrito = {}
                             st.session_state.notas_productos = {}
+                            
+                            # Limpieza completa de URL viejas para resguardar la privacidad de los clientes
                             st.query_params.clear()
                             st.query_params["rec_user"] = json.dumps(st.session_state.datos_cliente_persistentes)
-                            st.query_params["tracking_id"] = str(id_nuevo_pedido)
                             st.rerun()
         elif sistema_abierto_real:
             st.info("El carrito está vacío. Agrega tus platillos usando los botones de arriba.")
@@ -565,7 +571,7 @@ with tab_admin:
         st.success("Acceso Autorizado")
         st.markdown("---")
         
-        # --- INTERRUPTOR MAESTRO CON GUARDADO EN DB CENTRAL ---
+        # --- INTERRUPTOR MAESTRO PERSISTENTE ---
         st.header("🚨 Estado del Establecimiento")
         texto_estado_actual = "🟢 Abierto (Recibiendo pedidos)" if sistema_abierto_real else "🔴 Cerrado (No recibir pedidos)"
         
@@ -656,9 +662,9 @@ with tab_admin:
                                 ["Pendiente", "En Cocina", "En Camino", "Entregado", "Cancelado"],
                                 index=["Pendiente", "En Cocina", "En Camino", "Entregado", "Cancelado"].index(p_est)
                             )
-                            st.form_submit_button("💾 Actualizar", use_container_width=True)
+                            submit_status = st.form_submit_button("💾 Actualizar", use_container_width=True)
                             
-                            if st.form_submit_button and nuevo_est != p_est:
+                            if submit_status and nuevo_est != p_est:
                                 conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
                                 c = conn.cursor()
                                 c.execute("UPDATE pedidos SET estado = ? WHERE id = ?", (nuevo_est, p_id))
@@ -691,8 +697,10 @@ with tab_admin:
                     nuevo_estado = st.toggle(f"Disponible: {prod}", value=estado_actual, key=f"switch_{prod}")
                     st.session_state.inventario[prod] = nuevo_estado
 
-        time.sleep(15)
-        st.rerun()
+        # Botón de refresco manual para el administrador en lugar de bucles forzados automáticos
+        st.markdown("---")
+        if st.button("🔄 REFRESCAR PANEL DE CONTROL", type="primary", use_container_width=True):
+            st.rerun()
                 
     elif password_input != "":
         st.error("Contraseña incorrecta.")
