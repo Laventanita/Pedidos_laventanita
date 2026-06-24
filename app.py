@@ -5,6 +5,7 @@ from datetime import datetime
 import time
 import json
 import re
+import urllib.parse
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="La Ventanita & Tacos Mixi", page_icon="🌮", layout="centered")
@@ -301,7 +302,6 @@ with tab_cliente:
 
                             st.write(f"**{prod}{agregado_texto}**\n${precio_final_prod:.2f}")
 
-                        # --- MEJORA 3: BOTÓN DINÁMICO DE AGREGAR PARA EVITAR CEROS MOLESTOS ---
                         with col_controles:
                             nombre_clave_carrito = f"{prod}|||{agregado_texto}|||{precio_final_prod}"
                             cant_actual = st.session_state.carrito.get(nombre_clave_carrito, 0)
@@ -447,8 +447,7 @@ with tab_cliente:
                 enviar_pedido = st.form_submit_button("🚀 CONFIRMAR Y ENVIAR PEDIDO A LA COCINA")
                 
                 if enviar_pedido:
-                    # --- MEJORA 1: VALIDACIÓN ROBUSTA DE TELÉFONO EN 10 DÍGITOS ---
-                    telefono_limpio = re.sub(r"\D", "", telefono_cli) # Remueve cualquier espacio o guión
+                    telefono_limpio = re.sub(r"\D", "", telefono_cli)
                     
                     if st.session_state.metodo_envio == "🛵 Envío a Domicilio" and not cp_actual:
                         st.error("⚠️ El Código Postal es estrictamente obligatorio para envíos a domicilio.")
@@ -501,17 +500,26 @@ with tab_admin:
             for ped in pedidos_activos:
                 p_id, p_fecha, p_nombre, p_tel, p_dir, p_det, p_tot, p_est, p_pago = ped
                 
-                with st.container(border=True):
+                with St.container(border=True):
                     col_det, col_est = st.columns([2, 1])
                     with col_det:
                         st.markdown(f"### 📦 Folio: #{p_id} — {p_nombre}")
-                        st.write(f"📅 **Fecha:** {p_fecha} | 📞 **Tel:** {p_tel}")
+                        st.write(f"📅 **Fecha:** {p_fecha}")
+                        
+                        # --- MEJORA 3: BOTÓN DINÁMICO PARA ABRIR WHATSAPP DIRECTO CON TEXTO DE CORTESÍA ---
+                        msg_whatsapp = f"¡Hola {p_nombre}! Te contactamos de La Ventanita / Tacos Mixi sobre tu pedido con folio #{p_id}."
+                        msg_encoded = urllib.parse.quote(msg_whatsapp)
+                        url_whatsapp = f"https://wa.me/52{p_tel}?text={msg_encoded}"
+                        
+                        st.markdown(f"📞 **Teléfono:** {p_tel}")
+                        st.sidebar.markdown(f"") # Espaciador invisible
+                        st.link_button("💬 Abrir WhatsApp", url_whatsapp, type="secondary", use_container_width=False)
+                        
                         st.write(f"📍 **Dirección:** {p_dir}")
                         st.write(f"💳 **Pago:** {p_pago}")
                         st.text(f"Detalle:\n{p_det}")
                         st.markdown(f"**Total a cobrar: ${p_tot:.2f}**")
                         
-                    # --- MEJORA 2: CAMBIO DE ESTADO ESTABLE (EVITA PARPADEO CON FORM) ---
                     with col_est:
                         st.markdown(f"**Estado actual: `{p_est}`**")
                         
