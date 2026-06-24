@@ -5,62 +5,71 @@ from datetime import datetime
 import time
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
-st.set_page_config(page_title="Menú Digital", page_icon="🌮", layout="centered")
+st.set_page_config(page_title="La Ventanita & Tacos Mixi", page_icon="🌮", layout="centered")
 
 # --- CREDENCIALES DESDE SECRETOS ---
 TOKEN = st.secrets["TELEGRAM_TOKEN"]
 CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
 
 # --- CONTRASEÑA DEL ADMINISTRADOR ---
-# Puedes cambiar "admin123" por la contraseña que tú quieras
-PASSWORD_ADMIN = "admin123" 
+PASSWORD_ADMIN = "1984" 
 
 # --- INICIALIZAR INVENTARIO EN SESIÓN ---
-# Esto mantiene el estado de qué productos están prendidos o apagados
 if 'inventario' not in st.session_state:
     st.session_state.inventario = {
         # Desayunos
-        "Chilaquiles sencillos": True,
-        "Chilaquiles con Huevo/Pollo": True,
-        "Huevos al gusto": True,
-        "Molletes": True,
-        # Jugos
-        "Jugo Verde": True,
-        "Jugo de Naranja": True,
-        "Jugo de Zanahoria": True,
-        "Jugo Combinado": True,
-        # Tacos y Quesadillas
-        "Taco de Mixiote": True,
-        "Taco de Bistec": True,
-        "Taco de Longaniza": True,
-        "Quesadilla sencilla": True,
-        "Quesadilla con carne": True
+        "Chilaquiles chicos (80g)": True,
+        "Chilaquiles medianos (170g)": True,
+        "Chilaquiles para acompañar (250g)": True,
+        "Cuernito sencillo": True,
+        "Cuernito con fruta": True,
+        # Licuados 1/2 L
+        "Licuado de Fresa (1/2 L)": True,
+        "Licuado de Chocolate (1/2 L)": True,
+        "Licuado de Plátano (1/2 L)": True,
+        # Licuados 1 L
+        "Licuado de Fresa (1 L)": True,
+        "Licuado de Chocolate (1 L)": True,
+        "Licuado de Plátano (1 L)": True,
+        # Aguas
+        "Agua de Café (1 L)": True, "Agua de Mazapán (1 L)": True, "Agua de Fresa (1 L)": True,
+        "Agua de Limón (1 L)": True, "Agua de Melón (1 L)": True, "Agua de Piña (1 L)": True,
+        "Agua de Sandía (1 L)": True, "Agua de Guayaba (1 L)": True, "Agua de Avena (1 L)": True
     }
 
-# --- ESTRUCTURA DEL MENÚ (Precios y Categorías fijas) ---
+# --- ESTRUCTURA DEL MENÚ REAL ---
 MENU = {
     "☕ Desayunos": {
-        "Chilaquiles sencillos": 75.0,
-        "Chilaquiles con Huevo/Pollo": 95.0,
-        "Huevos al gusto": 70.0,
-        "Molletes": 65.0
+        "Chilaquiles chicos (80g)": 50.0,
+        "Chilaquiles medianos (170g)": 65.0,
+        "Chilaquiles para acompañar (250g)": 100.0,
+        "Cuernito sencillo": 45.0,
+        "Cuernito con fruta": 75.0
     },
-    "🧃 Jugos de Fruta": {
-        "Jugo Verde": 45.0,
-        "Jugo de Naranja": 40.0,
-        "Jugo de Zanahoria": 40.0,
-        "Jugo Combinado": 45.0
+    "🥤 Licuados (1/2 Litro)": {
+        "Licuado de Fresa (1/2 L)": 35.0,
+        "Licuado de Chocolate (1/2 L)": 35.0,
+        "Licuado de Plátano (1/2 L)": 35.0
     },
-    "🌮 Tacos y Quesadillas": {
-        "Taco de Mixiote": 18.0,
-        "Taco de Bistec": 18.0,
-        "Taco de Longaniza": 18.0,
-        "Quesadilla sencilla": 25.0,
-        "Quesadilla con carne": 35.0
+    "🥤 Licuados (1 Litro)": {
+        "Licuado de Fresa (1 L)": 70.0,
+        "Licuado de Chocolate (1 L)": 70.0,
+        "Licuado de Plátano (1 L)": 70.0
+    },
+    "🍹 Aguas Frescas (1 Litro) - $40.00": {
+        "Agua de Café (1 L)": 40.0,
+        "Agua de Mazapán (1 L)": 40.0,
+        "Agua de Fresa (1 L)": 40.0,
+        "Agua de Limón (1 L)": 40.0,
+        "Agua de Melón (1 L)": 40.0,
+        "Agua de Piña (1 L)": 40.0,
+        "Agua de Sandía (1 L)": 40.0,
+        "Agua de Guayaba (1 L)": 40.0,
+        "Agua de Avena (1 L)": 40.0
     }
 }
 
-# --- UNIDAD BASE DE DATOS ---
+# --- BASE DE DATOS LOCAL ---
 def init_db():
     conn = sqlite3.connect('pedidos_negocio.db')
     c = conn.cursor()
@@ -90,8 +99,7 @@ def enviar_pedido_telegram(nombre, telefono, direccion, detalle, total):
 
 init_db()
 
-# --- PESTAÑAS: MENÚ CLIENTE O PANEL ADMIN ---
-# Usamos las pestañas nativas de Streamlit para separar las vistas
+# --- PESTAÑAS ---
 tab_cliente, tab_admin = st.tabs(["📋 Menú para Clientes", "🔐 Panel Administrador"])
 
 # =====================================================================
@@ -104,28 +112,36 @@ with tab_cliente:
     if 'carrito' not in st.session_state:
         st.session_state.carrito = {}
 
-    # Mostrar categorías
     for categoria, productos in MENU.items():
-        # Verificar si al menos un producto de la categoría está disponible para mostrarla
         al_menos_uno_disponible = any(st.session_state.inventario.get(p, True) for p in productos)
         
         if al_menos_uno_disponible:
             with st.expander(f"{categoria}", expanded=True):
                 for prod, precio in productos.items():
-                    # Si tú apagaste el producto en el panel, el cliente no lo ve
                     if not st.session_state.inventario.get(prod, True):
                         continue
                         
                     col1, col2, col3 = st.columns([2, 1, 1])
                     col1.write(f"**{prod}**\n${precio:.2f}")
                     
-                    if col2.button("➕", key=f"add_{prod}"):
-                        st.session_state.carrito[prod] = st.session_state.carrito.get(prod, 0) + 1
+                    # Selector de salsa especial si es chilaquiles
+                    salsa = ""
+                    if "Chilaquiles" in prod:
+                        salsa_elegida = col1.selectbox("Salsa:", ["Verdes", "Rojos"], key=f"salsa_{prod}")
+                        salsa = f" ({salsa_elegida})"
                     
-                    cant = st.session_state.carrito.get(prod, 0)
-                    col3.write(f"Cant: **{cant}**")
+                    if col2.button("➕", key=f"add_{prod}"):
+                        nombre_final = f"{prod}{salsa}"
+                        st.session_state.carrito[nombre_final] = st.session_state.carrito.get(nombre_final, 0) + 1
+                    
+                    # Buscar cantidad considerando si lleva salsa o no
+                    cant = 0
+                    for k, v in st.session_state.carrito.items():
+                        if k.startswith(prod):
+                            cant += v
+                    col3.write(f"Cant total: **{cant}**")
 
-    # Procesar Carrito de Compras
+    # Procesar Carrito
     total_cuenta = 0.0
     detalle_ticket_telegram = ""
     productos_seleccionados = {k: v for k, v in st.session_state.carrito.items() if v > 0}
@@ -134,17 +150,19 @@ with tab_cliente:
         st.markdown("---")
         st.subheader("🛒 Tu Pedido")
         
-        for prod, cant in productos_seleccionados.items():
-            precio_unitario = next(precio for cat in MENU.values() for p, precio in cat.items() if p == prod)
+        for nombre_completo, cant in productos_seleccionados.items():
+            # Encontrar el precio base mapeando el nombre original sin la salsa
+            nombre_base = nombre_completo.split(" (Verdes)")[0].split(" (Rojos)")[0]
+            precio_unitario = next(precio for cat in MENU.values() for p, precio in cat.items() if p == nombre_base)
             subtotal = precio_unitario * cant
             total_cuenta += subtotal
             
-            st.write(f"• {cant}x {prod} — ${subtotal:.2f}")
-            if st.button("❌ Quitar uno", key=f"del_{prod}"):
-                st.session_state.carrito[prod] -= 1
+            st.write(f"• {cant}x {nombre_completo} — ${subtotal:.2f}")
+            if st.button("❌ Quitar uno", key=f"del_{nombre_completo}"):
+                st.session_state.carrito[nombre_completo] -= 1
                 st.rerun()
                 
-            detalle_ticket_telegram += f"• {cant}x {prod}\n"
+            detalle_ticket_telegram += f"• {cant}x {nombre_completo}\n"
             
         st.markdown(f"### **Total a pagar: ${total_cuenta:.2f}**")
         st.markdown("---")
@@ -179,30 +197,21 @@ with tab_cliente:
         st.info("El carrito está vacío. Agrega tus platillos usando el botón ➕ de arriba.")
 
 # =====================================================================
-# 🔐 PANEL ADMINISTRADOR (OCULTO)
+# 🔐 PANEL ADMINISTRADOR
 # =====================================================================
 with tab_admin:
     st.title("⚙️ Control de Inventario")
-    
-    # Input de seguridad para la contraseña
     password_input = st.text_input("Introduce la contraseña de Administrador", type="password")
     
     if password_input == PASSWORD_ADMIN:
         st.success("Acceso Autorizado")
-        st.write("Apaga o prende los productos. Los cambios se aplican inmediatamente para los clientes.")
+        st.write("Apaga los productos que no estés vendiendo en este momento o que se hayan terminado:")
         
-        # Mostrar los interruptores organizados por categorías
         for categoria, productos in MENU.items():
             st.markdown(f"### {categoria}")
             for prod in productos.keys():
-                # Crear un interruptor (toggle) por cada producto
                 estado_actual = st.session_state.inventario.get(prod, True)
-                
-                # El switch cambia el estado directamente en st.session_state
                 nuevo_estado = st.toggle(f"Disponible: {prod}", value=estado_actual, key=f"switch_{prod}")
                 st.session_state.inventario[prod] = nuevo_estado
-                
-        st.info("💡 Consejo: Si apagas todos los productos de una categoría (ej. todos los desayunos), la sección completa desaparecerá para el cliente.")
-    
     elif password_input != "":
-        st.error("Contraseña incorrecta. Acceso denegado.")
+        st.error("Contraseña incorrecta.")
