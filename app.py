@@ -14,9 +14,8 @@ CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
 # --- CONTRASEÑA DEL ADMINISTRADOR ---
 PASSWORD_ADMIN = "admin123" 
 
-# --- CONFIGURACIÓN MAESTRA DE CÓDIGOS POSTALES (MÁXIMO 10 KM) ---
+# --- CONFIGURACIÓN MAESTRA DE CÓDIGOS POSTALES ---
 MAPA_CODIGOS_POSTALES = {
-    # --- ZONA 1: Cercana Tecámac (0 a 3 km) - $25.00 ---
     "55763": {"nombre": "Vitalia / Ojo de Agua / Los Héroes Tecámac", "costo": 25.0},
     "55764": {"nombre": "Los Héroes Tecámac II / Los Héroes Ozumbilla / Margarito F. Ayala", "costo": 25.0},
     "55766": {"nombre": "Ampliación Ozumbilla", "costo": 25.0},
@@ -24,40 +23,34 @@ MAPA_CODIGOS_POSTALES = {
     "55773": {"nombre": "Hacienda Provenzal", "costo": 25.0},
     "55776": {"nombre": "Lomas de San Pedro Atzompa", "costo": 25.0},
     "55778": {"nombre": "Ampliación de la Concepción", "costo": 25.0},
-
-    # --- ZONA 2: Media Tecámac (3 a 7 km) - $40.00 ---
     "55740": {"nombre": "Tecámac Centro / Ejido Santa Ana / El Calvario / Galaxias el Llano", "costo": 40.0},
-    "55743": {"nombre": "Real Granada / Isidro Fabela / Rancho la Luz / La Palma / Hacienda del Bosque", "costo": 40.0},
+    "55743": {"nombre": "Real Granada / Rancho la Luz / Hacienda del Bosque", "costo": 40.0},
     "55744": {"nombre": "San Pedro Potzohuacan", "costo": 40.0},
-    "55745": {"nombre": "Real Granada IV / Reserva Castilla / San Jerónimo Xonacahuacan", "costo": 40.0},
-    "55748": {"nombre": "San Martín Azcatepec / San José / Jema / San Mateo Tecalco / Los Olivos", "costo": 40.0},
-    "55749": {"nombre": "Villa del Real / Sierra Hermosa / Montecarlo / Jardines de Tecámac", "costo": 40.0},
-    "55760": {"nombre": "San Francisco Cuautliquixca / Santa María Ozumbilla / Portal Ojo de Agua", "costo": 40.0},
-    "55768": {"nombre": "Lomas de Ozumbilla / San Antonio / Cuauhtémoc / La Azteca", "costo": 40.0},
-
-    # --- ZONA 3: Lejana Tecámac / Ecatepec Norte Colindante (7 a 10 km) - $55.00 ---
-    "55746": {"nombre": "Rancho la Capilla / Santa Cruz Tecámac / Real Belmonte", "costo": 55.0},
+    "55745": {"nombre": "Real Granada IV / San Jerónimo Xonacahuacan", "costo": 40.0},
+    "55748": {"nombre": "San Martín Azcatepec / San Mateo Tecalco / Los Olivos", "costo": 40.0},
+    "55749": {"nombre": "Villa del Real / Sierra Hermosa / Montecarlo", "costo": 40.0},
+    "55760": {"nombre": "San Francisco Cuautliquixca / Santa María Ozumbilla", "costo": 40.0},
+    "55768": {"nombre": "Lomas de Ozumbilla / Cuauhtémoc / La Azteca", "costo": 40.0},
+    "55746": {"nombre": "Rancho la Capilla / Real Belmonte", "costo": 55.0},
     "55747": {"nombre": "San Pablo Tecalco / San Isidro Citlalcóatl", "costo": 55.0},
     "55750": {"nombre": "Santa María Ajoloapan / El Tanque", "costo": 55.0},
     "55752": {"nombre": "San Juan Pueblo Nuevo", "costo": 55.0},
     "55754": {"nombre": "Paseos de Tecámac / Santo Domingo Ajoloapan", "costo": 55.0},
-    "55755": {"nombre": "Los Reyes Acozac / Buenavista / San Miguel / Progreso", "costo": 55.0},
+    "55755": {"nombre": "Los Reyes Acozac / Buenavista / San Miguel", "costo": 55.0},
     "55757": {"nombre": "San Lucas Xolox / Ejidal", "costo": 55.0},
     "55758": {"nombre": "Ampliación la Palma (Zona Industrial)", "costo": 55.0},
     "55765": {"nombre": "Los Héroes San Pablo / Lomas de Tecámac / La Cañada", "costo": 55.0},
-    
-    # Únicos sectores de Ecatepec aceptados dentro del radio límite de 10 km
     "55060": {"nombre": "Venta de Carpio / La Guadalupana / Los Héroes Ecatepec V", "costo": 55.0},
     "55063": {"nombre": "Ciudad Cuauhtémoc (Chiconautla 3000)", "costo": 55.0},
     "55064": {"nombre": "San Isidro Atlautenco / Cd. Cuauhtémoc (Nopalera)", "costo": 55.0},
     "55065": {"nombre": "Santa Cruz Venta de Carpio", "costo": 55.0},
-    "55066": {"nombre": "Santa María Chiconautla / Santo Tomás Chiconautla / Portal Chiconautla", "costo": 55.0},
-    "55067": {"nombre": "Ciudad Cuauhtémoc (Geo 2000 / Tlaloc / Cuitlahuac)", "costo": 55.0},
+    "55066": {"nombre": "Santa María Chiconautla / Santo Tomás Chiconautla", "costo": 55.0},
+    "55067": {"nombre": "Ciudad Cuauhtémoc (Geo 2000 / Tlaloc)", "costo": 55.0},
     "55068": {"nombre": "Santo Tomás Chiconautla (Ejido / El Mirador)", "costo": 55.0},
     "55069": {"nombre": "La Preciosa / Los Pajaritos / La Garita", "costo": 55.0},
 }
 
-# --- CONFIGURACIÓN DEL MENÚ COMPLETO ---
+# --- MENÚ COMPLETO ---
 MENU = {
     "☕ Desayunos (La Ventanita)": {
         "Chilaquiles chicos (80g)": 50.0,
@@ -102,7 +95,6 @@ MENU = {
     }
 }
 
-# --- INICIALIZAR INVENTARIO AUTOMÁTICO EN SESSION_STATE ---
 if 'inventario' not in st.session_state:
     st.session_state.inventario = {}
     for categoria, productos in MENU.items():
@@ -115,14 +107,12 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS pedidos 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT, nombre TEXT, 
                   telefono TEXT, direccion TEXT, pedido TEXT, total REAL, estado TEXT)''')
-    
     c.execute("PRAGMA table_info(pedidos)")
     columnas = [col[1] for col in c.fetchall()]
     if "metodo_pago" not in columnas:
         c.execute("ALTER TABLE pedidos ADD COLUMN metodo_pago TEXT DEFAULT 'No especificado'")
     if "archivado" not in columnas:
         c.execute("ALTER TABLE pedidos ADD COLUMN archivado INTEGER DEFAULT 0")
-        
     conn.commit()
     conn.close()
 
@@ -194,7 +184,6 @@ with tab_cliente:
                 st.error("❌ Lo sentimos, este pedido ha sido cancelado por el establecimiento.")
             else:
                 st.progress(progreso)
-                
                 if estado_actual == "Pendiente":
                     st.warning("🕒 **Estado:** Esperando confirmación de la cocina... Tu pedido ya fue recibido.")
                 elif estado_actual == "En Cocina":
@@ -206,7 +195,6 @@ with tab_cliente:
 
             st.write(f"**Monto a pagar al recibir:** ${total_c:.2f}")
             st.markdown("---")
-            
             if st.button("🛒 Hacer un nuevo pedido"):
                 del st.session_state.rastreo_id
                 st.rerun()
@@ -223,6 +211,8 @@ with tab_cliente:
 
         if 'carrito' not in st.session_state:
             st.session_state.carrito = {}
+        if 'notas_productos' not in st.session_state:
+            st.session_state.notas_productos = {}
 
         for category, productos in MENU.items():
             al_menos_uno_disponible = any(st.session_state.inventario.get(p, True) for p in productos)
@@ -232,43 +222,62 @@ with tab_cliente:
                         if not st.session_state.inventario.get(prod, True):
                             continue
                             
-                        col1, col2, col3 = st.columns([2, 1, 1])
+                        col_info, col_controles = st.columns([2, 2])
                         
-                        # Manejo de modificadores dinámicos (Salsas / Quesillo)
                         agregado_texto = ""
                         precio_final_prod = precio
                         
-                        if "Chilaquiles" in prod:
-                            salsa_elegida = col1.selectbox("Salsa:", ["Verdes", "Rojos"], key=f"mod_{prod}")
-                            agregado_texto = f" ({salsa_elegida})"
-                        
-                        elif "Taco de" in prod and prod != "Taco de Chuleta":
-                            con_q = col1.checkbox("¿Con Quesillo? (+$3.00)", key=f"mod_{prod}")
-                            if con_q:
-                                precio_final_prod = 31.0
-                                agregado_texto = " (Con Quesillo)"
-                                
-                        elif "Quesadilla" in prod or "Gordita" in prod:
-                            con_q = col1.checkbox("¿Con Quesillo? (Lleva a precio fijo de $31 / $33)", key=f"mod_{prod}")
-                            if con_q:
-                                precio_final_prod = 33.0 if "Gordita" in prod else 31.0
-                                agregado_texto = " (Con Quesillo)"
+                        with col_info:
+                            if "Chilaquiles" in prod:
+                                salsa_elegida = st.selectbox("Salsa:", ["Verdes", "Rojos"], key=f"mod_{prod}")
+                                agregado_texto = f" ({salsa_elegida})"
+                            
+                            elif "Taco de" in prod and prod != "Taco de Chuleta":
+                                con_q = st.checkbox("¿Con Quesillo? (+$3.00)", key=f"mod_{prod}")
+                                guarnicion = st.selectbox("Acompañado con:", ["Con papas", "Con nopales", "Papas y Nopales", "Sin guarnición"], key=f"guar_{prod}")
+                                if con_q:
+                                    precio_final_prod = 31.0
+                                    agregado_texto += " (Con Quesillo)"
+                                agregado_texto += f" [{guarnicion}]"
+                                    
+                            elif "Taco Campechano" in prod:
+                                con_q = st.checkbox("¿Con Quesillo? (+$3.00)", key=f"mod_{prod}")
+                                guarnicion = st.selectbox("Acompañado con:", ["Con papas", "Con nopales", "Papas y Nopales", "Sin guarnición"], key=f"guar_{prod}")
+                                if con_q:
+                                    precio_final_prod = 31.0
+                                    agregado_texto += " (Con Quesillo)"
+                                agregado_texto += f" [{guarnicion}]"
 
-                        col1.write(f"**{prod}{agregado_texto}**\n${precio_final_prod:.2f}")
-                        
-                        if col2.button("➕", key=f"add_{prod}_{agregado_texto}"):
+                            elif "Quesadilla" in prod or "Gordita" in prod:
+                                con_q = st.checkbox("¿Con Quesillo?", key=f"mod_{prod}")
+                                if con_q:
+                                    precio_final_prod = 33.0 if "Gordita" in prod else 31.0
+                                    agregado_texto = " (Con Quesillo)"
+
+                            st.write(f"**{prod}{agregado_texto}**\n${precio_final_prod:.2f}")
+
+                        with col_controles:
                             nombre_clave_carrito = f"{prod}|||{agregado_texto}|||{precio_final_prod}"
-                            st.session_state.carrito[nombre_clave_carrito] = st.session_state.carrito.get(nombre_clave_carrito, 0) + 1
-                            st.rerun()
-                        
-                        # Contar cuántos de este producto base hay en el carrito
-                        cant = 0
-                        for k, v in st.session_state.carrito.items():
-                            if k.startswith(prod):
-                                cant += v
-                        col3.write(f"Cant: **{cant}**")
+                            cant_actual = st.session_state.carrito.get(nombre_clave_carrito, 0)
+                            
+                            c1, c2, c3 = st.columns([1, 1, 1])
+                            if c1.button("➖", key=f"sub_{prod}_{agregado_texto}"):
+                                if cant_actual > 0:
+                                    st.session_state.carrito[nombre_clave_carrito] -= 1
+                                    st.rerun()
+                            c2.write(f"**{cant_actual}**")
+                            if c3.button("➕", key=f"add_{prod}_{agregado_texto}"):
+                                st.session_state.carrito[nombre_clave_carrito] = cant_actual + 1
+                                st.rerun()
+                                
+                            # Si ya se agregó por lo menos uno, mostrar cuadro de texto para notas/especificaciones
+                            if cant_actual > 0:
+                                st.session_state.notas_productos[nombre_clave_carrito] = st.text_input(
+                                    "Especificación (Ej: sin verdura):",
+                                    value=st.session_state.notas_productos.get(nombre_clave_carrito, ""),
+                                    key=f"nota_input_{nombre_clave_carrito}"
+                                )
 
-        # Filtrar solo elementos con cantidad > 0
         productos_seleccionados = {k: v for k, v in st.session_state.carrito.items() if v > 0}
 
         if productos_seleccionados:
@@ -279,21 +288,22 @@ with tab_cliente:
             detalle_ticket_texto = ""
             
             for clave_carrito, cant in productos_seleccionados.items():
-                # Descomponer la clave del carrito [nombre, extra, precio]
                 p_nombre, p_extra, p_precio_str = clave_carrito.split("|||")
                 precio_item = float(p_precio_str)
                 subtotal = precio_item * cant
                 total_productos += subtotal
                 
-                nombre_pantalla = f"{p_nombre}{p_extra}"
-                col_p, col_b = st.columns([3, 1])
-                col_p.write(f"• {cant}x {nombre_pantalla} — ${subtotal:.2f}")
+                nota_especifica = st.session_state.notas_productos.get(clave_carrito, "").strip()
+                nota_pantalla = f" *[Nota: {nota_especifica}]*" if nota_especifica else ""
                 
-                if col_b.button("❌ Quitar", key=f"del_{clave_carrito}"):
-                    st.session_state.carrito[clave_carrito] -= 1
+                col_p, col_b = st.columns([3, 1])
+                col_p.write(f"• {cant}x {p_nombre}{p_extra}{nota_pantalla} — ${subtotal:.2f}")
+                
+                if col_b.button("❌ Quitar Todo", key=f"del_all_{clave_carrito}"):
+                    st.session_state.carrito[clave_carrito] = 0
                     st.rerun()
                     
-                detalle_ticket_texto += f"• {cant}x {nombre_pantalla} (${precio_item:.2f} c/u) — ${subtotal:.2f}\n"
+                detalle_ticket_texto += f"• {cant}x {p_nombre}{p_extra}{nota_pantalla} (${precio_item:.2f} c/u) — ${subtotal:.2f}\n"
                 
             st.markdown(f"**Subtotal de Productos:** ${total_productos:.2f}")
             st.markdown("---")
@@ -311,7 +321,6 @@ with tab_cliente:
             
             if st.session_state.metodo_envio == "🛵 Envío a Domicilio":
                 st.session_state.cp_input = st.text_input("Código Postal (5 dígitos) *", value=st.session_state.cp_input, max_chars=5)
-                
                 if st.session_state.cp_input:
                     if st.session_state.cp_input in MAPA_CODIGOS_POSTALES:
                         costo_envio = MAPA_CODIGOS_POSTALES[st.session_state.cp_input]["costo"]
@@ -356,7 +365,9 @@ with tab_cliente:
                 st.markdown("**Artículos solicitados:**")
                 for clave_carrito, cant in productos_seleccionados.items():
                     p_nombre, p_extra, _ = clave_carrito.split("|||")
-                    st.write(f"  • {cant}x {p_nombre}{p_extra}")
+                    nota_especifica = st.session_state.notas_productos.get(clave_carrito, "").strip()
+                    nota_pantalla = f" *[Nota: {nota_especifica}]*" if nota_especifica else ""
+                    st.write(f"  • {cant}x {p_nombre}{p_extra}{nota_pantalla}")
                 
                 st.write(f"**• Subtotal Platillos:** ${total_productos:.2f}")
                 st.write(f"**• Costo de Envío:** ${costo_envio:.2f}" if costo_envio is not None else "**• Costo de Envío:** [BLOQUEADO]")
@@ -386,15 +397,15 @@ with tab_cliente:
                         dir_final = f"[{tipo_entrega_txt}] {direccion_cli}" if st.session_state.metodo_envio == "🛵 Envío a Domicilio" else "Cliente recoge en Local"
                         
                         id_nuevo_pedido = guardar_pedido_db(fecha_actual, nombre_cli, telefono_cli, dir_final, detalle_ticket_texto, total_final, cambio_txt)
-                        
                         enviar_pedido_telegram(id_nuevo_pedido, nombre_cli, telefono_cli, direccion_cli if direccion_cli else "Recoge en Local", tipo_entrega_txt, costo_envio, propina_mensaje_telegram, detalle_ticket_texto, total_final, cambio_txt)
                         
                         st.session_state.rastreo_id = id_nuevo_pedido
                         st.session_state.carrito = {}
+                        st.session_state.notas_productos = {}
                         st.session_state.cp_input = ""
                         st.rerun()
         else:
-            st.info("El carrito está vacío. Agrega tus platillos usando el botón ➕ de arriba.")
+            st.info("El carrito está vacío. Agrega tus platillos usando los botones de arriba.")
 
 # =====================================================================
 # 🔐 PANEL ADMINISTRADOR
@@ -405,7 +416,6 @@ with tab_admin:
     
     if password_input == PASSWORD_ADMIN:
         st.success("Acceso Autorizado")
-        
         st.markdown("---")
         st.header("📥 Gestión de Pedidos Activos")
         st.write("Cambia el estado de los pedidos aquí abajo para que los clientes lo vean reflejado en su pantalla en tiempo real:")
@@ -422,7 +432,6 @@ with tab_admin:
                 
                 with st.container(border=True):
                     col_det, col_est = st.columns([2, 1])
-                    
                     with col_det:
                         st.markdown(f"### 📦 Folio: #{p_id} — {p_nombre}")
                         st.write(f"📅 **Fecha:** {p_fecha} | 📞 **Tel:** {p_tel}")
