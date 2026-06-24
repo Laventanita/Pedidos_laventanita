@@ -79,8 +79,6 @@ MENU = {
     "✨ Especialidades Mixi": {
         "Gordita": 30.0,
         "Pambazo de Papa con Longaniza": 30.0,
-        "Pambazo de Papa": 30.0,
-        "Pambazo de Longaniza": 30.0,
         "Pambazo Especial (Otro ingrediente)": 35.0
     },
     "🥤 Licuados (1/2 Litro)": {
@@ -214,8 +212,6 @@ with tab_cliente:
             st.session_state.carrito = {}
         if 'notas_productos' not in st.session_state:
             st.session_state.notas_productos = {}
-        if 'ingrediente_pambazo_especial' not in st.session_state:
-            st.session_state.ingrediente_pambazo_especial = {}
 
         for category, productos in MENU.items():
             al_menos_uno_disponible = any(st.session_state.inventario.get(p, True) for p in productos)
