@@ -4,6 +4,7 @@ import requests
 from datetime import datetime
 import time
 import json
+import re
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="La Ventanita & Tacos Mixi", page_icon="🌮", layout="centered")
@@ -119,7 +120,6 @@ if 'datos_cliente_persistentes' not in st.session_state:
         except: st.session_state.datos_cliente_persistentes = {"nombre": "", "tel": "", "dir": "", "cp": ""}
     else: st.session_state.datos_cliente_persistentes = {"nombre": "", "tel": "", "dir": "", "cp": ""}
 
-# --- PERSISTENCIA DEL RASTREADOR TRAS REFRESCAR LA PÁGINA ---
 if 'rastreo_id' not in st.session_state:
     if "tracking_id" in st.query_params:
         try: st.session_state.rastreo_id = int(st.query_params["tracking_id"])
@@ -301,26 +301,31 @@ with tab_cliente:
 
                             st.write(f"**{prod}{agregado_texto}**\n${precio_final_prod:.2f}")
 
+                        # --- MEJORA 3: BOTÓN DINÁMICO DE AGREGAR PARA EVITAR CEROS MOLESTOS ---
                         with col_controles:
                             nombre_clave_carrito = f"{prod}|||{agregado_texto}|||{precio_final_prod}"
                             cant_actual = st.session_state.carrito.get(nombre_clave_carrito, 0)
                             
-                            btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1])
-                            
-                            if btn_col1.button("➖", key=f"sub_{prod}_{agregado_texto}", use_container_width=True):
-                                if cant_actual > 0:
+                            if cant_actual == 0:
+                                if st.button("🛒 Agregar", key=f"init_btn_{prod}_{agregado_texto}", use_container_width=True):
+                                    st.session_state.carrito[nombre_clave_carrito] = 1
+                                    actualizar_memoria_navegador()
+                                    st.rerun()
+                            else:
+                                btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1])
+                                
+                                if btn_col1.button("➖", key=f"sub_{prod}_{agregado_texto}", use_container_width=True):
                                     st.session_state.carrito[nombre_clave_carrito] -= 1
                                     actualizar_memoria_navegador()
                                     st.rerun()
-                                    
-                            btn_col2.markdown(f"<h4 style='text-align: center; margin: 0;'>{cant_actual}</h4>", unsafe_allow_html=True)
-                            
-                            if btn_col3.button("➕", key=f"add_{prod}_{agregado_texto}", use_container_width=True):
-                                st.session_state.carrito[nombre_clave_carrito] = cant_actual + 1
-                                actualizar_memoria_navegador()
-                                st.rerun()
+                                        
+                                btn_col2.markdown(f"<h4 style='text-align: center; margin: 0;'>{cant_actual}</h4>", unsafe_allow_html=True)
                                 
-                            if cant_actual > 0:
+                                if btn_col3.button("➕", key=f"add_{prod}_{agregado_texto}", use_container_width=True):
+                                    st.session_state.carrito[nombre_clave_carrito] = cant_actual + 1
+                                    actualizar_memoria_navegador()
+                                    st.rerun()
+                                    
                                 vieja_nota = st.session_state.notas_productos.get(nombre_clave_carrito, "")
                                 nueva_nota = st.text_input("Especificación:", value=vieja_nota, key=f"nota_input_{nombre_clave_carrito}", placeholder="Ej: sin hielo")
                                 if nueva_nota != vieja_nota:
@@ -442,21 +447,26 @@ with tab_cliente:
                 enviar_pedido = st.form_submit_button("🚀 CONFIRMAR Y ENVIAR PEDIDO A LA COCINA")
                 
                 if enviar_pedido:
+                    # --- MEJORA 1: VALIDACIÓN ROBUSTA DE TELÉFONO EN 10 DÍGITOS ---
+                    telefono_limpio = re.sub(r"\D", "", telefono_cli) # Remueve cualquier espacio o guión
+                    
                     if st.session_state.metodo_envio == "🛵 Envío a Domicilio" and not cp_actual:
                         st.error("⚠️ El Código Postal es estrictamente obligatorio para envíos a domicilio.")
                     elif costo_envio is None:
                         st.error("❌ No se puede enviar. Tu Código Postal está fuera de la cobertura de 10 km.")
                     elif not nombre_cli or not telefono_cli or (st.session_state.metodo_envio == "🛵 Envío a Domicilio" and not direccion_cli):
                         st.error("⚠️ Por favor completa tu nombre, teléfono y dirección antes de enviar.")
+                    elif len(telefono_limpio) != 10:
+                        st.error("❌ Teléfono Inválido: Debe tener exactamente 10 números (Ej: 5512345678) sin letras.")
                     else:
-                        st.session_state.datos_cliente_persistentes = {"nombre": nombre_cli, "tel": telefono_cli, "dir": direccion_cli, "cp": cp_actual if st.session_state.metodo_envio == "🛵 Envío a Domicilio" else ""}
+                        st.session_state.datos_cliente_persistentes = {"nombre": nombre_cli, "tel": telefono_limpio, "dir": direccion_cli, "cp": cp_actual if st.session_state.metodo_envio == "🛵 Envío a Domicilio" else ""}
                         
                         fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         total_final = total_productos + costo_envio + valor_propina
                         dir_final = f"[{tipo_entrega_txt}] {direccion_cli}" if st.session_state.metodo_envio == "🛵 Envío a Domicilio" else "Cliente recoge en Local"
                         
-                        id_nuevo_pedido = guardar_pedido_db(fecha_actual, nombre_cli, telefono_cli, dir_final, detalle_ticket_texto, total_final, cambio_txt)
-                        enviar_pedido_telegram(id_nuevo_pedido, nombre_cli, telefono_cli, direccion_cli if direccion_cli else "Recoge en Local", tipo_entrega_txt, costo_envio, propina_mensaje_telegram, detalle_ticket_texto, total_final, cambio_txt)
+                        id_nuevo_pedido = guardar_pedido_db(fecha_actual, nombre_cli, telefono_limpio, dir_final, detalle_ticket_texto, total_final, cambio_txt)
+                        enviar_pedido_telegram(id_nuevo_pedido, nombre_cli, telefono_limpio, direccion_cli if direccion_cli else "Recoge en Local", tipo_entrega_txt, costo_envio, propina_mensaje_telegram, detalle_ticket_texto, total_final, cambio_txt)
                         
                         st.session_state.rastreo_id = id_nuevo_pedido
                         st.session_state.carrito = {}
@@ -479,7 +489,7 @@ with tab_admin:
         st.success("Acceso Autorizado")
         st.markdown("---")
         st.header("📥 Gestión de Pedidos Activos")
-        st.write("Cambia el estado de los pedidos aquí abajo para que los clientes lo vean reflejado en su pantalla en tiempo real:")
+        st.write("Cambia el estado de los pedidos aquí abajo:")
         
         conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
         c = conn.cursor()
@@ -501,24 +511,27 @@ with tab_admin:
                         st.text(f"Detalle:\n{p_det}")
                         st.markdown(f"**Total a cobrar: ${p_tot:.2f}**")
                         
+                    # --- MEJORA 2: CAMBIO DE ESTADO ESTABLE (EVITA PARPADEO CON FORM) ---
                     with col_est:
                         st.markdown(f"**Estado actual: `{p_est}`**")
-                        nuevo_est = st.selectbox(
-                            "Modificar Estatus:", 
-                            ["Pendiente", "En Cocina", "En Camino", "Entregado", "Cancelado"],
-                            index=["Pendiente", "En Cocina", "En Camino", "Entregado", "Cancelado"].index(p_est),
-                            key=f"status_select_{p_id}"
-                        )
                         
-                        if nuevo_est != p_est:
-                            conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
-                            c = conn.cursor()
-                            c.execute("UPDATE pedidos SET estado = ? WHERE id = ?", (nuevo_est, p_id))
-                            conn.commit()
-                            conn.close()
-                            st.toast(f"¡Pedido #{p_id} actualizado a {nuevo_est}!")
-                            time.sleep(0.5)
-                            st.rerun()
+                        with st.form(key=f"form_admin_status_{p_id}"):
+                            nuevo_est = st.selectbox(
+                                "Modificar Estatus:", 
+                                ["Pendiente", "En Cocina", "En Camino", "Entregado", "Cancelado"],
+                                index=["Pendiente", "En Cocina", "En Camino", "Entregado", "Cancelado"].index(p_est)
+                            )
+                            guardar_cambio_estado = st.form_submit_button("💾 Actualizar", use_container_width=True)
+                            
+                            if guardar_cambio_estado and nuevo_est != p_est:
+                                conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
+                                c = conn.cursor()
+                                c.execute("UPDATE pedidos SET estado = ? WHERE id = ?", (nuevo_est, p_id))
+                                conn.commit()
+                                conn.close()
+                                st.toast(f"¡Pedido #{p_id} actualizado a {nuevo_est}!")
+                                time.sleep(0.5)
+                                st.rerun()
                             
                         if p_est in ["Entregado", "Cancelado"]:
                             if st.button("🗂️ Archivar Pedido", key=f"archive_btn_{p_id}", use_container_width=True):
