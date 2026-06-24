@@ -3,6 +3,7 @@ import sqlite3
 import requests
 from datetime import datetime
 import time
+import json
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="La Ventanita & Tacos Mixi", page_icon="🌮", layout="centered")
@@ -91,8 +92,39 @@ MENU = {
         "Agua de Café (1 L)": 40.0, "Agua de Mazapán (1 L)": 40.0, "Agua de Fresa (1 L)": 40.0,
         "Agua de Limón (1 L)": 40.0, "Agua de Melón (1 L)": 40.0, "Agua de Piña (1 L)": 40.0,
         "Agua de Sandía (1 L)": 40.0, "Agua de Guayaba (1 L)": 40.0, "Agua de Avena (1 L)": 40.0
+    },
+    "🥤 Jugos Naturales": {
+        # PRÓXIMAMENTE: Agrega tus jugos aquí cuando los tengas listos, ej:
+        # "Jugo de Naranja": 35.0,
+        # "Jugo Verde": 40.0
     }
 }
+
+# --- PERSISTENCIA AUTOMÁTICA ---
+# Cargamos datos guardados previamente de la URL/Navegador para evitar que se borren al salir
+if 'carrito' not in st.session_state:
+    if "rec_cart" in st.query_params:
+        try: st.session_state.carrito = json.loads(st.query_params["rec_cart"])
+        except: st.session_state.carrito = {}
+    else: st.session_state.carrito = {}
+
+if 'notas_productos' not in st.session_state:
+    if "rec_notes" in st.query_params:
+        try: st.session_state.notas_productos = json.loads(st.query_params["rec_notes"])
+        except: st.session_state.notas_productos = {}
+    else: st.session_state.notas_productos = {}
+
+if 'datos_cliente_persistentes' not in st.session_state:
+    if "rec_user" in st.query_params:
+        try: st.session_state.datos_cliente_persistentes = json.loads(st.query_params["rec_user"])
+        except: st.session_state.datos_cliente_persistentes = {"nombre": "", "tel": "", "dir": "", "cp": ""}
+    else: st.session_state.datos_cliente_persistentes = {"nombre": "", "tel": "", "dir": "", "cp": ""}
+
+def actualizar_memoria_navegador():
+    """ Guarda el estado actual en los parámetros url para recuperarlos si la página se refresca o cierra """
+    st.query_params["rec_cart"] = json.dumps(st.session_state.carrito)
+    st.query_params["rec_notes"] = json.dumps(st.session_state.notas_productos)
+    st.query_params["rec_user"] = json.dumps(st.session_state.datos_cliente_persistentes)
 
 if 'inventario' not in st.session_state:
     st.session_state.inventario = {}
@@ -196,6 +228,7 @@ with tab_cliente:
             st.markdown("---")
             if st.button("🛒 Hacer un nuevo pedido"):
                 del st.session_state.rastreo_id
+                st.query_params.clear()
                 st.rerun()
 
             time.sleep(12)
@@ -208,11 +241,6 @@ with tab_cliente:
         st.title("La Ventanita & Tacos Mixi")
         st.write("Arma tu pedido aquí abajo combinando lo mejor de nuestros dos menús.")
 
-        if 'carrito' not in st.session_state:
-            st.session_state.carrito = {}
-        if 'notas_productos' not in st.session_state:
-            st.session_state.notas_productos = {}
-
         for category, productos in MENU.items():
             al_menos_uno_disponible = any(st.session_state.inventario.get(p, True) for p in productos)
             if al_menos_uno_disponible:
@@ -222,7 +250,6 @@ with tab_cliente:
                             continue
                             
                         col_info, col_controles = st.columns([2, 2])
-                        
                         agregado_texto = ""
                         precio_final_prod = precio
                         
@@ -268,18 +295,20 @@ with tab_cliente:
                             if c1.button("➖", key=f"sub_{prod}_{agregado_texto}"):
                                 if cant_actual > 0:
                                     st.session_state.carrito[nombre_clave_carrito] -= 1
+                                    actualizar_memoria_navegador()
                                     st.rerun()
                             c2.write(f"**{cant_actual}**")
                             if c3.button("➕", key=f"add_{prod}_{agregado_texto}"):
                                 st.session_state.carrito[nombre_clave_carrito] = cant_actual + 1
+                                actualizar_memoria_navegador()
                                 st.rerun()
                                 
                             if cant_actual > 0:
-                                st.session_state.notas_productos[nombre_clave_carrito] = st.text_input(
-                                    "Especificación (Ej: sin verdura):",
-                                    value=st.session_state.notas_productos.get(nombre_clave_carrito, ""),
-                                    key=f"nota_input_{nombre_clave_carrito}"
-                                )
+                                vieja_nota = st.session_state.notas_productos.get(nombre_clave_carrito, "")
+                                nueva_nota = st.text_input("Especificación (Ej: sin verdura):", value=vieja_nota, key=f"nota_input_{nombre_clave_carrito}")
+                                if nueva_nota != vieja_nota:
+                                    st.session_state.notas_productos[nombre_clave_carrito] = nueva_nota
+                                    actualizar_memoria_navegador()
 
         productos_seleccionados = {k: v for k, v in st.session_state.carrito.items() if v > 0}
 
@@ -304,6 +333,7 @@ with tab_cliente:
                 
                 if col_b.button("❌ Quitar Todo", key=f"del_all_{clave_carrito}"):
                     st.session_state.carrito[clave_carrito] = 0
+                    actualizar_memoria_navegador()
                     st.rerun()
                     
                 detalle_ticket_texto += f"• {cant}x {p_nombre}{p_extra}{nota_pantalla} (${precio_item:.2f} c/u) — ${subtotal:.2f}\n"
@@ -313,7 +343,6 @@ with tab_cliente:
             
             st.subheader("👤 Datos para la Entrega")
             
-            if 'cp_input' not in st.session_state: st.session_state.cp_input = ""
             if 'metodo_envio' not in st.session_state: st.session_state.metodo_envio = "🛵 Envío a Domicilio"
             if 'propina_opcion' not in st.session_state: st.session_state.propina_opcion = "No agregar por ahora"
 
@@ -323,12 +352,16 @@ with tab_cliente:
             tipo_entrega_txt = "Recoger en Local"
             
             if st.session_state.metodo_envio == "🛵 Envío a Domicilio":
-                st.session_state.cp_input = st.text_input("Código Postal (5 dígitos) *", value=st.session_state.cp_input, max_chars=5)
-                if st.session_state.cp_input:
-                    if st.session_state.cp_input in MAPA_CODIGOS_POSTALES:
-                        costo_envio = MAPA_CODIGOS_POSTALES[st.session_state.cp_input]["costo"]
-                        zona_nombre = MAPA_CODIGOS_POSTALES[st.session_state.cp_input]["nombre"]
-                        tipo_entrega_txt = f"Domicilio (CP {st.session_state.cp_input} - {zona_nombre})"
+                cp_actual = st.text_input("Código Postal (5 dígitos) *", value=st.session_state.datos_cliente_persistentes.get("cp", ""), max_chars=5)
+                if cp_actual != st.session_state.datos_cliente_persistentes.get("cp", ""):
+                    st.session_state.datos_cliente_persistentes["cp"] = cp_actual
+                    actualizar_memoria_navegador()
+
+                if cp_actual:
+                    if cp_actual in MAPA_CODIGOS_POSTALES:
+                        costo_envio = MAPA_CODIGOS_POSTALES[cp_actual]["costo"]
+                        zona_nombre = MAPA_CODIGOS_POSTALES[cp_actual]["nombre"]
+                        tipo_entrega_txt = f"Domicilio (CP {cp_actual} - {zona_nombre})"
                         st.success(f"📍 Zona de Reparto Validada: {zona_nombre}")
                     else:
                         costo_envio = None
@@ -381,20 +414,27 @@ with tab_cliente:
                 st.markdown(f"## **Total Final: ${total_informativo:.2f}**")
 
             with st.form("formulario_confirmacion"):
-                nombre_cli = st.text_input("Nombre Completo *")
-                telefono_cli = st.text_input("Teléfono de Contacto (WhatsApp) *")
-                direccion_cli = st.text_area("Dirección Completa (Calle, Número, Colonia, Referencias) *") if st.session_state.metodo_envio == "🛵 Envío a Domicilio" else ""
+                nombre_cli = st.text_input("Nombre Completo *", value=st.session_state.datos_cliente_persistentes.get("nombre", ""))
+                telefono_cli = st.text_input("Teléfono de Contacto (WhatsApp) *", value=st.session_state.datos_cliente_persistentes.get("tel", ""))
+                
+                if st.session_state.metodo_envio == "🛵 Envío a Domicilio":
+                    direccion_cli = st.text_area("Dirección Completa (Calle, Número, Colonia, Referencias) *", value=st.session_state.datos_cliente_persistentes.get("dir", ""))
+                else:
+                    direccion_cli = ""
                 
                 enviar_pedido = st.form_submit_button("🚀 CONFIRMAR Y ENVIAR PEDIDO A LA COCINA")
                 
                 if enviar_pedido:
-                    if st.session_state.metodo_envio == "🛵 Envío a Domicilio" and not st.session_state.cp_input:
+                    if st.session_state.metodo_envio == "🛵 Envío a Domicilio" and not cp_actual:
                         st.error("⚠️ El Código Postal es estrictamente obligatorio para envíos a domicilio.")
                     elif costo_envio is None:
                         st.error("❌ No se puede enviar. Tu Código Postal está fuera de la cobertura de 10 km.")
                     elif not nombre_cli or not telefono_cli or (st.session_state.metodo_envio == "🛵 Envío a Domicilio" and not direccion_cli):
                         st.error("⚠️ Por favor completa tu nombre, teléfono y dirección antes de enviar.")
                     else:
+                        # Guardar permanentemente datos de contacto del usuario para su próximo pedido futuro
+                        st.session_state.datos_cliente_persistentes = {"nombre": nombre_cli, "tel": telefono_cli, "dir": direccion_cli, "cp": cp_actual if st.session_state.metodo_envio == "🛵 Envío a Domicilio" else ""}
+                        
                         fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         total_final = total_productos + costo_envio + valor_propina
                         dir_final = f"[{tipo_entrega_txt}] {direccion_cli}" if st.session_state.metodo_envio == "🛵 Envío a Domicilio" else "Cliente recoge en Local"
@@ -405,7 +445,8 @@ with tab_cliente:
                         st.session_state.rastreo_id = id_nuevo_pedido
                         st.session_state.carrito = {}
                         st.session_state.notas_productos = {}
-                        st.session_state.cp_input = ""
+                        st.query_params.clear()
+                        st.query_params["rec_user"] = json.dumps(st.session_state.datos_cliente_persistentes)
                         st.rerun()
         else:
             st.info("El carrito está vacío. Agrega tus platillos usando los botones de arriba.")
@@ -478,11 +519,12 @@ with tab_admin:
         st.markdown("---")
         st.header("🥦 Control de Disponibilidad del Menú")
         for category, productos in MENU.items():
-            st.markdown(f"### {category}")
-            for prod in productos.keys():
-                estado_actual = st.session_state.inventario.get(prod, True)
-                nuevo_estado = st.toggle(f"Disponible: {prod}", value=estado_actual, key=f"switch_{prod}")
-                st.session_state.inventario[prod] = nuevo_estado
+            if productos: # Solo iterar si tiene productos cargados
+                st.markdown(f"### {category}")
+                for prod in productos.keys():
+                    estado_actual = st.session_state.inventario.get(prod, True)
+                    nuevo_estado = st.toggle(f"Disponible: {prod}", value=estado_actual, key=f"switch_{prod}")
+                    st.session_state.inventario[prod] = nuevo_estado
 
         time.sleep(15)
         st.rerun()
