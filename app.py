@@ -119,10 +119,18 @@ if 'datos_cliente_persistentes' not in st.session_state:
         except: st.session_state.datos_cliente_persistentes = {"nombre": "", "tel": "", "dir": "", "cp": ""}
     else: st.session_state.datos_cliente_persistentes = {"nombre": "", "tel": "", "dir": "", "cp": ""}
 
+# --- PERSISTENCIA DEL RASTREADOR TRAS REFRESCAR LA PÁGINA ---
+if 'rastreo_id' not in st.session_state:
+    if "tracking_id" in st.query_params:
+        try: st.session_state.rastreo_id = int(st.query_params["tracking_id"])
+        except: pass
+
 def actualizar_memoria_navegador():
     st.query_params["rec_cart"] = json.dumps(st.session_state.carrito)
     st.query_params["rec_notes"] = json.dumps(st.session_state.notas_productos)
     st.query_params["rec_user"] = json.dumps(st.session_state.datos_cliente_persistentes)
+    if 'rastreo_id' in st.session_state:
+        st.query_params["tracking_id"] = str(st.session_state.rastreo_id)
 
 if 'inventario' not in st.session_state:
     st.session_state.inventario = {}
@@ -130,7 +138,6 @@ if 'inventario' not in st.session_state:
         for prod in productos.keys():
             st.session_state.inventario[prod] = True
 
-# --- SOLUCIÓN AL OPERATIONAL ERROR: timeout=10 para evitar bloqueos concurrentes ---
 def init_db():
     conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
     c = conn.cursor()
@@ -234,6 +241,8 @@ with tab_cliente:
             st.rerun()
         else:
             del st.session_state.rastreo_id
+            if "tracking_id" in st.query_params:
+                del st.query_params["tracking_id"]
             st.rerun()
             
     else:
@@ -292,12 +301,10 @@ with tab_cliente:
 
                             st.write(f"**{prod}{agregado_texto}**\n${precio_final_prod:.2f}")
 
-                        # --- OPTIMIZACIÓN HORIZONTAL DE BOTONES (MENOS ESPACIO) ---
                         with col_controles:
                             nombre_clave_carrito = f"{prod}|||{agregado_texto}|||{precio_final_prod}"
                             cant_actual = st.session_state.carrito.get(nombre_clave_carrito, 0)
                             
-                            # Usamos proporciones de columna para mantenerlos perfectamente en un solo renglón
                             btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1])
                             
                             if btn_col1.button("➖", key=f"sub_{prod}_{agregado_texto}", use_container_width=True):
@@ -306,7 +313,6 @@ with tab_cliente:
                                     actualizar_memoria_navegador()
                                     st.rerun()
                                     
-                            # Centramos visualmente el número de la cantidad
                             btn_col2.markdown(f"<h4 style='text-align: center; margin: 0;'>{cant_actual}</h4>", unsafe_allow_html=True)
                             
                             if btn_col3.button("➕", key=f"add_{prod}_{agregado_texto}", use_container_width=True):
@@ -457,6 +463,7 @@ with tab_cliente:
                         st.session_state.notas_productos = {}
                         st.query_params.clear()
                         st.query_params["rec_user"] = json.dumps(st.session_state.datos_cliente_persistentes)
+                        st.query_params["tracking_id"] = str(id_nuevo_pedido)
                         st.rerun()
         else:
             st.info("El carrito está vacío. Agrega tus platillos usando los botones de arriba.")
