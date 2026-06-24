@@ -6,10 +6,9 @@ from datetime import datetime
 # --- CONFIGURACIÓN DE LA PÁGINA (ESTILO MÓVIL) ---
 st.set_page_config(page_title="Menú Digital", page_icon="🌮", layout="centered")
 
-# --- CREDENCIALES DE TELEGRAM ---
-# Coloca aquí los mismos datos que te funcionaron en la prueba
-TOKEN = "8555372164:AAFyK4QG_OTuxVycw6Nw2zEONTypHP4xCPk"
-CHAT_ID = "7021516628"
+# --- CREDENCIALES DE TELEGRAM (SEGURAS) ---
+TOKEN = st.secrets["TELEGRAM_TOKEN"]
+CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
 
 # --- FUNCIONES CORE ---
 
