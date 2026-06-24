@@ -94,9 +94,17 @@ MENU = {
 def init_db():
     conn = sqlite3.connect('pedidos_negocio.db')
     c = conn.cursor()
+    # Crear la tabla base si no existe
     c.execute('''CREATE TABLE IF NOT EXISTS pedidos 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT, nombre TEXT, 
-                  telefono TEXT, direccion TEXT, pedido TEXT, total REAL, estado TEXT, metodo_pago TEXT)''')
+                  telefono TEXT, direccion TEXT, pedido TEXT, total REAL, estado TEXT)''')
+    
+    # Migración automática segura: Verifica si falta la columna metodo_pago y la añade si es necesario
+    c.execute("PRAGMA table_info(pedidos)")
+    columnas = [col[1] for col in c.fetchall()]
+    if "metodo_pago" not in columnas:
+        c.execute("ALTER TABLE pedidos ADD COLUMN metodo_pago TEXT DEFAULT 'No especificado'")
+        
     conn.commit()
     conn.close()
 
@@ -151,7 +159,6 @@ tab_cliente, tab_admin = st.tabs(["📋 Menú para Clientes", "🔐 Panel Admini
 # 📋 VISTA DEL CLIENTE
 # =====================================================================
 with tab_cliente:
-    # Verificación de si el cliente está rastreando un pedido en curso
     if 'rastreo_id' in st.session_state:
         id_actual = st.session_state.rastreo_id
         datos_p = consultar_estado_pedido(id_actual)
@@ -162,7 +169,6 @@ with tab_cliente:
             st.subheader(f"Hola {nombre_c}, ¡aquí puedes ver el estatus de tu orden!")
             st.info(f"**Folio del Pedido:** #{id_actual} | **Fecha:** {fecha_c}")
             
-            # Mapeo de barra de progreso por estados
             estados_map = {"Pendiente": 0.15, "En Cocina": 0.50, "En Camino": 0.80, "Entregado": 1.0, "Cancelado": 0.0}
             progreso = estados_map.get(estado_actual, 0.0)
             
@@ -199,10 +205,10 @@ with tab_cliente:
         if 'carrito' not in st.session_state:
             st.session_state.carrito = {}
 
-        for categoria, productos in MENU.items():
+        for category, productos in MENU.items():
             al_menos_uno_disponible = any(st.session_state.inventario.get(p, True) for p in productos)
             if al_menos_uno_disponible:
-                with st.expander(f"{categoria}", expanded=True):
+                with st.expander(f"{category}", expanded=True):
                     for prod, precio in productos.items():
                         if not st.session_state.inventario.get(prod, True):
                             continue
@@ -294,7 +300,6 @@ with tab_cliente:
             elif "20" in st.session_state.propina_opcion: valor_propina = 20.0; propina_mensaje_telegram = "$20.00"
             elif "efectivo" in st.session_state.propina_opcion: propina_mensaje_telegram = "Se entregará en efectivo"
 
-            # --- SECCIÓN DE SELECCIÓN DE PAGO CONTRA ENTREGA ---
             st.markdown("---")
             st.subheader("💳 Método de Pago")
             tipo_pago = st.radio("¿Cómo deseas pagar tu pedido al recibir?", ["💵 Efectivo", "💳 Tarjeta (El repartidor lleva Terminal Física)"], horizontal=True)
@@ -306,7 +311,6 @@ with tab_cliente:
             else:
                 cambio_txt = "Tarjeta (Llevar terminal Clip/MercadoPago)"
 
-            # --- RESUMEN DE CUENTA TOTALMENTE DESGLOSADO ---
             st.markdown("### 📋 Resumen Detallado de tu Cuenta")
             with st.container(border=True):
                 st.markdown("**Artículos solicitados:**")
@@ -323,7 +327,6 @@ with tab_cliente:
                 total_informativo = total_productos + (costo_envio if costo_envio is not None else 0.0) + valor_propina
                 st.markdown(f"## **Total Final: ${total_informativo:.2f}**")
 
-            # Formulario definitivo para capturar textos y procesar envío
             with st.form("formulario_confirmacion"):
                 nombre_cli = st.text_input("Nombre Completo *")
                 telefono_cli = st.text_input("Teléfono de Contacto (WhatsApp) *")
@@ -343,13 +346,10 @@ with tab_cliente:
                         total_final = total_productos + costo_envio + valor_propina
                         dir_final = f"[{tipo_entrega_txt}] {direccion_cli}" if st.session_state.metodo_envio == "🛵 Envío a Domicilio" else "Cliente recoge en Local"
                         
-                        # Guardar e identificar ID (Folio) único
                         id_nuevo_pedido = guardar_pedido_db(fecha_actual, nombre_cli, telefono_cli, dir_final, detalle_ticket_texto, total_final, cambio_txt)
                         
-                        # Telegram con método de pago
                         enviar_pedido_telegram(id_nuevo_pedido, nombre_cli, telefono_cli, direccion_cli if direccion_cli else "Recoge en Local", tipo_entrega_txt, costo_envio, propina_mensaje_telegram, detalle_ticket_texto, total_final, cambio_txt)
                         
-                        # Cambiar estado para mandar a vista de rastreo inmediato
                         st.session_state.rastreo_id = id_nuevo_pedido
                         st.session_state.carrito = {}
                         st.session_state.cp_input = ""
@@ -367,14 +367,12 @@ with tab_admin:
     if password_input == PASSWORD_ADMIN:
         st.success("Acceso Autorizado")
         
-        # --- NUEVA SECCIÓN: GESTIÓN DE PEDIDOS Y RASTREO EN VIVO ---
         st.markdown("---")
         st.header("📥 Gestión de Pedidos Activos")
         st.write("Cambia el estado de los pedidos aquí abajo para que los clientes lo vean reflejado en su pantalla en tiempo real:")
         
         conn = sqlite3.connect('pedidos_negocio.db')
         c = conn.cursor()
-        # Traer los últimos 10 pedidos
         c.execute("SELECT id, fecha, nombre, telefono, direccion, pedido, total, estado, metodo_pago FROM pedidos ORDER BY id DESC LIMIT 10")
         pedidos_activos = c.fetchall()
         conn.close()
@@ -396,7 +394,6 @@ with tab_admin:
                         
                     with col_est:
                         st.markdown(f"**Estado actual: `{p_est}`**")
-                        # Selector para actualizar estado
                         nuevo_est = st.selectbox(
                             "Modificar Estatus:", 
                             ["Pendiente", "En Cocina", "En Camino", "Entregado", "Cancelado"],
@@ -416,11 +413,10 @@ with tab_admin:
         else:
             st.info("No hay pedidos registrados el día de hoy en la base de datos.")
             
-        # --- CONTROL DE INVENTARIO TRADICIONAL ---
         st.markdown("---")
         st.header("🥦 Control de Disponibilidad del Menú")
-        for categoria, productos in MENU.items():
-            st.markdown(f"### {categoria}")
+        for category, productos in MENU.items():
+            st.markdown(f"### {category}")
             for prod in productos.keys():
                 estado_actual = st.session_state.inventario.get(prod, True)
                 nuevo_estado = st.toggle(f"Disponible: {prod}", value=estado_actual, key=f"switch_{prod}")
