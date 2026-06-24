@@ -137,35 +137,42 @@ if 'rastreo_id' not in st.session_state:
         try: st.session_state.rastreo_id = int(st.query_params["tracking_id"])
         except: pass
 
-# Control Maestro de Estado del Negocio (Abierto / Cerrado)
-if 'sistema_abierto' not in st.session_state:
-    st.session_state.sistema_abierto = True
-
-def actualizar_memoria_navegador():
-    st.query_params["rec_cart"] = json.dumps(st.session_state.carrito)
-    st.query_params["rec_notes"] = json.dumps(st.session_state.notas_productos)
-    st.query_params["rec_user"] = json.dumps(st.session_state.datos_cliente_persistentes)
-    if 'rastreo_id' in st.session_state:
-        st.query_params["tracking_id"] = str(st.session_state.rastreo_id)
-
-if 'inventario' not in st.session_state:
-    st.session_state.inventario = {}
-    for categoria, productos in MENU.items():
-        for prod in productos.keys():
-            st.session_state.inventario[prod] = True
-
 def init_db():
     conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS pedidos 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, fecha TEXT, nombre TEXT, 
                   telefono TEXT, direccion TEXT, pedido TEXT, total REAL, estado TEXT)''')
+    
+    # Tabla para guardar el estado maestro de apertura del negocio
+    c.execute('''CREATE TABLE IF NOT EXISTS configuracion 
+                 (clave TEXT PRIMARY KEY, valor TEXT)''')
+    
+    # Inicializar el negocio como abierto por defecto si no existe registro
+    c.execute("INSERT OR IGNORE INTO configuracion (clave, valor) VALUES ('sistema_abierto', 'True')")
+    
     c.execute("PRAGMA table_info(pedidos)")
     columnas = [col[1] for col in c.fetchall()]
     if "metodo_pago" not in columnas:
         c.execute("ALTER TABLE pedidos ADD COLUMN metodo_pago TEXT DEFAULT 'No especificado'")
     if "archivado" not in columnas:
         c.execute("ALTER TABLE pedidos ADD COLUMN archivado INTEGER DEFAULT 0")
+    conn.commit()
+    conn.close()
+
+# Funciones de lectura/escritura para el botón de cerrado maestro
+def obtener_estado_sistema_db():
+    conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
+    c = conn.cursor()
+    c.execute("SELECT valor FROM configuracion WHERE clave = 'sistema_abierto'")
+    res = c.fetchone()
+    conn.close()
+    return res[0] == 'True' if res else True
+
+def actualizar_estado_sistema_db(abierto):
+    conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
+    c = conn.cursor()
+    c.execute("INSERT OR REPLACE INTO configuracion (clave, valor) VALUES ('sistema_abierto', ?)", (str(abierto),))
     conn.commit()
     conn.close()
 
@@ -213,6 +220,22 @@ def enviar_pedido_telegram(id_pedido, nombre, telefono, direccion, tipo_entrega,
         st.error(f"Error en comunicación con Telegram: {e}")
 
 init_db()
+
+# Cargar el estado maestro desde la base de datos centralizada
+sistema_abierto_real = obtener_estado_sistema_db()
+
+def actualizar_memoria_navegador():
+    st.query_params["rec_cart"] = json.dumps(st.session_state.carrito)
+    st.query_params["rec_notes"] = json.dumps(st.session_state.notas_productos)
+    st.query_params["rec_user"] = json.dumps(st.session_state.datos_cliente_persistentes)
+    if 'rastreo_id' in st.session_state:
+        st.query_params["tracking_id"] = str(st.session_state.rastreo_id)
+
+if 'inventario' not in st.session_state:
+    st.session_state.inventario = {}
+    for categoria, productos in MENU.items():
+        for prod in productos.keys():
+            st.session_state.inventario[prod] = True
 
 tab_cliente, tab_admin = st.tabs(["📋 Menú para Clientes", "🔐 Panel Administrador"])
 
@@ -264,8 +287,8 @@ with tab_cliente:
     else:
         st.title("La Ventanita & Tacos Mixi")
         
-        # VALIDACIÓN DE ESTADO ABIERTO/CERRADO
-        if not st.session_state.sistema_abierto:
+        # VALIDACIÓN DE ESTADO ABIERTO/CERRADO DESDE LA DB MAESTRA
+        if not sistema_abierto_real:
             st.error("🛑 **LO SENTIMOS, NUESTRA COCINA SE ENCUENTRA CERRADA POR EL MOMENTO.**")
             st.info("Puedes revisar nuestro menú aquí abajo, pero la toma de pedidos y el envío de carritos están deshabilitados hasta nuestra próxima apertura. ¡Gracias por tu comprensión!")
         else:
@@ -342,7 +365,7 @@ with tab_cliente:
                             st.write(f"**{prod}{agregado_texto}**\n${precio_final_prod:.2f}")
 
                         with col_controles:
-                            if st.session_state.sistema_abierto: # Solo renderizar botones de compra si está abierto
+                            if sistema_abierto_real: 
                                 nombre_clave_carrito = f"{prod}|||{agregado_texto}|||{precio_final_prod}"
                                 cant_actual = st.session_state.carrito.get(nombre_clave_carrito, 0)
                                 
@@ -376,12 +399,12 @@ with tab_cliente:
 
         productos_seleccionados = {k: v for k, v in st.session_state.carrito.items() if v > 0}
 
-        # Si el negocio cierra mientras tenía cosas en el carrito, vaciarlo por seguridad
-        if productos_seleccionados and not st.session_state.sistema_abierto:
+        # Si el negocio cerró mientras tenía cosas en el carrito, se vacía automáticamente
+        if productos_seleccionados and not sistema_abierto_real:
             st.session_state.carrito = {}
             st.rerun()
 
-        if productos_seleccionados and st.session_state.sistema_abierto:
+        if productos_seleccionados and sistema_abierto_real:
             st.markdown("---")
             st.subheader("🛒 Tu Pedido")
             
@@ -466,7 +489,6 @@ with tab_cliente:
                 cambio_txt = "Tarjeta (Llevar terminal Clip/MercadoPago)"
 
             st.markdown("### 📋 Resumen Detallado de tu Cuenta")
-            # SE CORRIGE DE CORRECCIÓN DE ERROR ANTERIOR DE LA "S" MAYÚSCULA
             with st.container(border=True):
                 st.markdown("**Artículos solicitados:**")
                 for clave_carrito, cant in productos_seleccionados.items():
@@ -475,10 +497,10 @@ with tab_cliente:
                     nota_pantalla = f" *[Nota: {nota_especifica}]*" if nota_especifica else ""
                     st.write(f"  • {cant}x {p_nombre}{p_extra}{nota_pantalla}")
                 
-                st.write(f"**• Subtotal Platillos:** ${total_productos:.2f}")
-                st.write(f"**• Costo de Envío:** ${costo_envio:.2f}" if costo_envio is not None else "**• Costo de Envío:** [BLOQUEADO]")
-                st.write(f"**• Propina Repartidor:** ${valor_propina:.2f} ({st.session_state.propina_opcion})")
-                st.write(f"**• Forma de Pago:** {cambio_txt}")
+                st.write(f"• **Subtotal Platillos:** ${total_productos:.2f}")
+                st.write(f"• **Costo de Envío:** ${costo_envio:.2f}" if costo_envio is not None else "**• Costo de Envío:** [BLOQUEADO]")
+                st.write(f"• **Propina Repartidor:** ${valor_propina:.2f} ({st.session_state.propina_opcion})")
+                st.write(f"• **Forma de Pago:** {cambio_txt}")
                 
                 total_informativo = total_productos + (costo_envio if costo_envio is not None else 0.0) + valor_propina
                 st.markdown(f"## **Total Final: ${total_informativo:.2f}**")
@@ -495,34 +517,41 @@ with tab_cliente:
                 enviar_pedido = st.form_submit_button("🚀 CONFIRMAR Y ENVIAR PEDIDO A LA COCINA")
                 
                 if enviar_pedido:
-                    telefono_limpio = re.sub(r"\D", "", telefono_cli)
+                    # FILTRO DE SEGURIDAD MÁXIMO DE SEGUNDO PLANO
+                    # Validamos el estado real en la base de datos justo al presionar el botón
+                    estado_actual_db = obtener_estado_sistema_db()
                     
-                    if st.session_state.metodo_envio == "🛵 Envío a Domicilio" and not cp_actual:
-                        st.error("⚠️ El Código Postal es estrictamente obligatorio para envíos a domicilio.")
-                    elif costo_envio is None:
-                        st.error("❌ No se puede enviar. Tu Código Postal está fuera de la cobertura de 10 km.")
-                    elif not nombre_cli or not telefono_cli or (st.session_state.metodo_envio == "🛵 Envío a Domicilio" and not direccion_cli):
-                        st.error("⚠️ Por favor completa tu nombre, teléfono y dirección antes de enviar.")
-                    elif len(telefono_limpio) != 10:
-                        st.error("❌ Teléfono Inválido: Debe tener exactamente 10 números (Ej: 5512345678) sin letras.")
+                    if not estado_actual_db:
+                        st.error("🛑 ¡LO SENTIMOS! La cocina acaba de cerrar mientras armabas tu carrito. El pedido no pudo ser enviado. Por favor intenta de nuevo en nuestra próxima apertura.")
                     else:
-                        st.session_state.datos_cliente_persistentes = {"nombre": nombre_cli, "tel": telefono_limpio, "dir": direccion_cli, "cp": cp_actual if st.session_state.metodo_envio == "🛵 Envío a Domicilio" else ""}
+                        telefono_limpio = re.sub(r"\D", "", telefono_cli)
                         
-                        fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        total_final = total_productos + costo_envio + valor_propina
-                        dir_final = f"[{tipo_entrega_txt}] {direccion_cli}" if st.session_state.metodo_envio == "🛵 Envío a Domicilio" else "Cliente recoge en Local"
-                        
-                        id_nuevo_pedido = guardar_pedido_db(fecha_actual, nombre_cli, telefono_limpio, dir_final, detalle_ticket_texto, total_final, cambio_txt)
-                        enviar_pedido_telegram(id_nuevo_pedido, nombre_cli, telefono_limpio, direccion_cli if direccion_cli else "Recoge en Local", tipo_entrega_txt, costo_envio, propina_mensaje_telegram, detalle_ticket_texto, total_final, cambio_txt)
-                        
-                        st.session_state.rastreo_id = id_nuevo_pedido
-                        st.session_state.carrito = {}
-                        st.session_state.notas_productos = {}
-                        st.query_params.clear()
-                        st.query_params["rec_user"] = json.dumps(st.session_state.datos_cliente_persistentes)
-                        st.query_params["tracking_id"] = str(id_nuevo_pedido)
-                        st.rerun()
-        elif st.session_state.sistema_abierto:
+                        if st.session_state.metodo_envio == "🛵 Envío a Domicilio" and not cp_actual:
+                            st.error("⚠️ El Código Postal es estrictamente obligatorio para envíos a domicilio.")
+                        elif costo_envio is None:
+                            st.error("❌ No se puede enviar. Tu Código Postal está fuera de la cobertura de 10 km.")
+                        elif not nombre_cli or not telefono_cli or (st.session_state.metodo_envio == "🛵 Envío a Domicilio" and not direccion_cli):
+                            st.error("⚠️ Por favor completa tu nombre, teléfono y dirección antes de enviar.")
+                        elif len(telefono_limpio) != 10:
+                            st.error("❌ Teléfono Inválido: Debe tener exactamente 10 números (Ej: 5512345678) sin letras.")
+                        else:
+                            st.session_state.datos_cliente_persistentes = {"nombre": nombre_cli, "tel": telefono_limpio, "dir": direccion_cli, "cp": cp_actual if st.session_state.metodo_envio == "🛵 Envío a Domicilio" else ""}
+                            
+                            fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            total_final = total_productos + costo_envio + valor_propina
+                            dir_final = f"[{tipo_entrega_txt}] {direccion_cli}" if st.session_state.metodo_envio == "🛵 Envío a Domicilio" else "Cliente recoge en Local"
+                            
+                            id_nuevo_pedido = guardar_pedido_db(fecha_actual, nombre_cli, telefono_limpio, dir_final, detalle_ticket_texto, total_final, cambio_txt)
+                            enviar_pedido_telegram(id_nuevo_pedido, nombre_cli, telefono_limpio, direccion_cli if direccion_cli else "Recoge en Local", tipo_entrega_txt, costo_envio, propina_mensaje_telegram, detalle_ticket_texto, total_final, cambio_txt)
+                            
+                            st.session_state.rastreo_id = id_nuevo_pedido
+                            st.session_state.carrito = {}
+                            st.session_state.notas_productos = {}
+                            st.query_params.clear()
+                            st.query_params["rec_user"] = json.dumps(st.session_state.datos_cliente_persistentes)
+                            st.query_params["tracking_id"] = str(id_nuevo_pedido)
+                            st.rerun()
+        elif sistema_abierto_real:
             st.info("El carrito está vacío. Agrega tus platillos usando los botones de arriba.")
 
 # =====================================================================
@@ -536,27 +565,28 @@ with tab_admin:
         st.success("Acceso Autorizado")
         st.markdown("---")
         
-        # --- NUEVA FUNCIÓN 1: INTERRUPTOR MAESTRO APERTURA/CIERRE ---
+        # --- INTERRUPTOR MAESTRO CON GUARDADO EN DB CENTRAL ---
         st.header("🚨 Estado del Establecimiento")
-        texto_estado_actual = "🟢 Abierto (Recibiendo pedidos)" if st.session_state.sistema_abierto else "🔴 Cerrado (No recibir pedidos)"
-        estado_toggle = st.toggle("Modificar estado de la cocina", value=st.session_state.sistema_abierto, help="Apaga este botón a las 7 PM o cuando desees pausar la entrada de pedidos. Enciéndelo a la 1 PM para abrir.")
-        if estado_toggle != st.session_state.sistema_abierto:
-            st.session_state.sistema_abierto = estado_toggle
-            st.toast(f"El sistema ha cambiado a: {texto_estado_actual}")
+        texto_estado_actual = "🟢 Abierto (Recibiendo pedidos)" if sistema_abierto_real else "🔴 Cerrado (No recibir pedidos)"
+        
+        estado_toggle = st.toggle("Modificar estado de la cocina", value=sistema_abierto_real, help="Apaga este botón para pausar de inmediato la entrada de pedidos de todos los usuarios.")
+        
+        if estado_toggle != sistema_abierto_real:
+            actualizar_estado_sistema_db(estado_toggle)
+            st.toast(f"El estado global cambió a: {'Abierto' if estado_toggle else 'Cerrado'}")
             time.sleep(0.5)
             st.rerun()
         
         st.markdown(f"El negocio actualmente está: **{texto_estado_actual}**")
         st.markdown("---")
         
-        # --- NUEVA FUNCIÓN 2: HISTORIAL DE VENTAS POR DÍA ---
+        # --- HISTORIAL DE VENTAS POR DÍA ---
         st.header("📊 Historial de Ventas e Ingresos")
         dia_busqueda = st.date_input("Selecciona el día para ver el reporte de ventas:", value=date.today())
         dia_str = dia_busqueda.strftime("%Y-%m-%d")
         
         conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
         c = conn.cursor()
-        # Buscamos registros que coincidan con la fecha seleccionada (excluyendo cancelados del total de ingresos)
         c.execute("SELECT id, nombre, total, metodo_pago, estado FROM pedidos WHERE fecha LIKE ? AND estado != 'Cancelado'", (f"{dia_str}%",))
         ventas_dia = c.fetchall()
         
