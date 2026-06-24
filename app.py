@@ -1,7 +1,7 @@
 import streamlit as st
 import sqlite3
 import requests
-from datetime import datetime
+from datetime import datetime, date
 import time
 import json
 import re
@@ -113,7 +113,7 @@ MENU = {
     }
 }
 
-# --- PERSISTENCIA AUTOMÁTICA ---
+# --- PERSISTENCIA AUTOMÁTICA Y ESTADOS MAESTROS ---
 if 'carrito' not in st.session_state:
     if "rec_cart" in st.query_params:
         try: st.session_state.carrito = json.loads(st.query_params["rec_cart"])
@@ -136,6 +136,10 @@ if 'rastreo_id' not in st.session_state:
     if "tracking_id" in st.query_params:
         try: st.session_state.rastreo_id = int(st.query_params["tracking_id"])
         except: pass
+
+# Control Maestro de Estado del Negocio (Abierto / Cerrado)
+if 'sistema_abierto' not in st.session_state:
+    st.session_state.sistema_abierto = True
 
 def actualizar_memoria_navegador():
     st.query_params["rec_cart"] = json.dumps(st.session_state.carrito)
@@ -259,7 +263,13 @@ with tab_cliente:
             
     else:
         st.title("La Ventanita & Tacos Mixi")
-        st.write("Arma tu pedido aquí abajo combinando lo mejor de nuestros dos menús.")
+        
+        # VALIDACIÓN DE ESTADO ABIERTO/CERRADO
+        if not st.session_state.sistema_abierto:
+            st.error("🛑 **LO SENTIMOS, NUESTRA COCINA SE ENCUENTRA CERRADA POR EL MOMENTO.**")
+            st.info("Puedes revisar nuestro menú aquí abajo, pero la toma de pedidos y el envío de carritos están deshabilitados hasta nuestra próxima apertura. ¡Gracias por tu comprensión!")
+        else:
+            st.write("Arma tu pedido aquí abajo combinando lo mejor de nuestros dos menús.")
 
         for category, productos in MENU.items():
             al_menos_uno_disponible = any(st.session_state.inventario.get(p, True) for p in productos)
@@ -332,38 +342,46 @@ with tab_cliente:
                             st.write(f"**{prod}{agregado_texto}**\n${precio_final_prod:.2f}")
 
                         with col_controles:
-                            nombre_clave_carrito = f"{prod}|||{agregado_texto}|||{precio_final_prod}"
-                            cant_actual = st.session_state.carrito.get(nombre_clave_carrito, 0)
-                            
-                            if cant_actual == 0:
-                                if st.button("🛒 Agregar", key=f"init_btn_{prod}_{agregado_texto}", use_container_width=True):
-                                    st.session_state.carrito[nombre_clave_carrito] = 1
-                                    actualizar_memoria_navegador()
-                                    st.rerun()
-                            else:
-                                btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1])
+                            if st.session_state.sistema_abierto: # Solo renderizar botones de compra si está abierto
+                                nombre_clave_carrito = f"{prod}|||{agregado_texto}|||{precio_final_prod}"
+                                cant_actual = st.session_state.carrito.get(nombre_clave_carrito, 0)
                                 
-                                if btn_col1.button("➖", key=f"sub_{prod}_{agregado_texto}", use_container_width=True):
-                                    st.session_state.carrito[nombre_clave_carrito] -= 1
-                                    actualizar_memoria_navegador()
-                                    st.rerun()
-                                        
-                                btn_col2.markdown(f"<h4 style='text-align: center; margin: 0;'>{cant_actual}</h4>", unsafe_allow_html=True)
-                                
-                                if btn_col3.button("➕", key=f"add_{prod}_{agregado_texto}", use_container_width=True):
-                                    st.session_state.carrito[nombre_clave_carrito] = cant_actual + 1
-                                    actualizar_memoria_navegador()
-                                    st.rerun()
+                                if cant_actual == 0:
+                                    if st.button("🛒 Agregar", key=f"init_btn_{prod}_{agregado_texto}", use_container_width=True):
+                                        st.session_state.carrito[nombre_clave_carrito] = 1
+                                        actualizar_memoria_navegador()
+                                        st.rerun()
+                                else:
+                                    btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1])
                                     
-                                vieja_nota = st.session_state.notas_productos.get(nombre_clave_carrito, "")
-                                nueva_nota = st.text_input("Especificación:", value=vieja_nota, key=f"nota_input_{nombre_clave_carrito}", placeholder="Ej: sin hielo")
-                                if nueva_nota != vieja_nota:
-                                    st.session_state.notas_productos[nombre_clave_carrito] = nueva_nota
-                                    actualizar_memoria_navegador()
+                                    if btn_col1.button("➖", key=f"sub_{prod}_{agregado_texto}", use_container_width=True):
+                                        st.session_state.carrito[nombre_clave_carrito] -= 1
+                                        actualizar_memoria_navegador()
+                                        st.rerun()
+                                            
+                                    btn_col2.markdown(f"<h4 style='text-align: center; margin: 0;'>{cant_actual}</h4>", unsafe_allow_html=True)
+                                    
+                                    if btn_col3.button("➕", key=f"add_{prod}_{agregado_texto}", use_container_width=True):
+                                        st.session_state.carrito[nombre_clave_carrito] = cant_actual + 1
+                                        actualizar_memoria_navegador()
+                                        st.rerun()
+                                        
+                                    vieja_nota = st.session_state.notas_productos.get(nombre_clave_carrito, "")
+                                    nueva_nota = st.text_input("Especificación:", value=vieja_nota, key=f"nota_input_{nombre_clave_carrito}", placeholder="Ej: sin hielo")
+                                    if nueva_nota != vieja_nota:
+                                        st.session_state.notas_productos[nombre_clave_carrito] = nueva_nota
+                                        actualizar_memoria_navegador()
+                            else:
+                                st.write("🔒 No disponible")
 
         productos_seleccionados = {k: v for k, v in st.session_state.carrito.items() if v > 0}
 
-        if productos_seleccionados:
+        # Si el negocio cierra mientras tenía cosas en el carrito, vaciarlo por seguridad
+        if productos_seleccionados and not st.session_state.sistema_abierto:
+            st.session_state.carrito = {}
+            st.rerun()
+
+        if productos_seleccionados and st.session_state.sistema_abierto:
             st.markdown("---")
             st.subheader("🛒 Tu Pedido")
             
@@ -448,6 +466,7 @@ with tab_cliente:
                 cambio_txt = "Tarjeta (Llevar terminal Clip/MercadoPago)"
 
             st.markdown("### 📋 Resumen Detallado de tu Cuenta")
+            # SE CORRIGE DE CORRECCIÓN DE ERROR ANTERIOR DE LA "S" MAYÚSCULA
             with st.container(border=True):
                 st.markdown("**Artículos solicitados:**")
                 for clave_carrito, cant in productos_seleccionados.items():
@@ -503,7 +522,7 @@ with tab_cliente:
                         st.query_params["rec_user"] = json.dumps(st.session_state.datos_cliente_persistentes)
                         st.query_params["tracking_id"] = str(id_nuevo_pedido)
                         st.rerun()
-        else:
+        elif st.session_state.sistema_abierto:
             st.info("El carrito está vacío. Agrega tus platillos usando los botones de arriba.")
 
 # =====================================================================
@@ -515,6 +534,57 @@ with tab_admin:
     
     if password_input == PASSWORD_ADMIN:
         st.success("Acceso Autorizado")
+        st.markdown("---")
+        
+        # --- NUEVA FUNCIÓN 1: INTERRUPTOR MAESTRO APERTURA/CIERRE ---
+        st.header("🚨 Estado del Establecimiento")
+        texto_estado_actual = "🟢 Abierto (Recibiendo pedidos)" if st.session_state.sistema_abierto else "🔴 Cerrado (No recibir pedidos)"
+        estado_toggle = st.toggle("Modificar estado de la cocina", value=st.session_state.sistema_abierto, help="Apaga este botón a las 7 PM o cuando desees pausar la entrada de pedidos. Enciéndelo a la 1 PM para abrir.")
+        if estado_toggle != st.session_state.sistema_abierto:
+            st.session_state.sistema_abierto = estado_toggle
+            st.toast(f"El sistema ha cambiado a: {texto_estado_actual}")
+            time.sleep(0.5)
+            st.rerun()
+        
+        st.markdown(f"El negocio actualmente está: **{texto_estado_actual}**")
+        st.markdown("---")
+        
+        # --- NUEVA FUNCIÓN 2: HISTORIAL DE VENTAS POR DÍA ---
+        st.header("📊 Historial de Ventas e Ingresos")
+        dia_busqueda = st.date_input("Selecciona el día para ver el reporte de ventas:", value=date.today())
+        dia_str = dia_busqueda.strftime("%Y-%m-%d")
+        
+        conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
+        c = conn.cursor()
+        # Buscamos registros que coincidan con la fecha seleccionada (excluyendo cancelados del total de ingresos)
+        c.execute("SELECT id, nombre, total, metodo_pago, estado FROM pedidos WHERE fecha LIKE ? AND estado != 'Cancelado'", (f"{dia_str}%",))
+        ventas_dia = c.fetchall()
+        
+        c.execute("SELECT COUNT(id) FROM pedidos WHERE fecha LIKE ?", (f"{dia_str}%",))
+        total_pedidos_creados = c.fetchone()[0]
+        conn.close()
+        
+        monto_total_dia = sum(v[2] for v in ventas_dia)
+        
+        col_m1, col_m2 = st.columns(2)
+        col_m1.metric(label="💰 Ingresos del Día (Sin Cancelados)", value=f"${monto_total_dia:.2f}")
+        col_m2.metric(label="📦 Pedidos Totales Solicitados", value=str(total_pedidos_creados))
+        
+        if ventas_dia:
+            with st.expander("📄 Ver desglose de folios de este día"):
+                tabla_reporte = []
+                for v in ventas_dia:
+                    tabla_reporte.append({
+                        "Folio": f"#{v[0]}",
+                        "Cliente": v[1],
+                        "Monto": f"${v[2]:.2f}",
+                        "Pago": v[3],
+                        "Estatus": v[4]
+                    })
+                st.table(tabla_reporte)
+        else:
+            st.caption("No hay registros de ventas cobradas para la fecha seleccionada.")
+            
         st.markdown("---")
         st.header("📥 Gestión de Pedidos Activos")
         st.write("Cambia el estado de los pedidos aquí abajo:")
