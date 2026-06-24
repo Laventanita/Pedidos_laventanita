@@ -64,15 +64,15 @@ MENU = {
     },
     "🍓 Frutas y Cocteles (La Ventanita)": {
         "Coctel de Mango con Chantilly": 35.0,
-        "Vaso de Mango": 35.0,
-        "Vaso de Uva": 35.0,
-        "Vaso de Jícama": 35.0,
-        "Vaso de Piña": 35.0,
-        "Vaso de Sandía": 35.0,
-        "Vaso de Melón": 35.0,
-        "Vaso de Papaya": 35.0,
-        "Vaso de Mango con Papaya": 35.0,
-        "Vaso de Mango con Uvas": 35.0
+        "Porción de Mango": 35.0,
+        "Porción de Uva": 35.0,
+        "Porción de Jícama": 35.0,
+        "Porción de Piña": 35.0,
+        "Porción de Sandía": 35.0,
+        "Porción de Melón": 35.0,
+        "Porción de Papaya": 35.0,
+        "Porción de Mango con Papaya": 35.0,
+        "Porción de Mango con Uvas": 35.0
     },
     "🌮 Los Tacos Mixi": {
         "Taco de Pastor": 28.0,
@@ -96,16 +96,15 @@ MENU = {
         "Pambazo de Papa con Longaniza": 30.0,
         "Pambazo Especial (Otro ingrediente)": 35.0
     },
-    "🥤 Licuados (1/2 Litro)": {
-        "Licuado de Fresa (1/2 L)": 35.0, "Licuado de Chocolate (1/2 L)": 35.0, "Licuado de Plátano (1/2 L)": 35.0
+    "🥤 Licuados": {
+        "Licuado de Fresa": 35.0, 
+        "Licuado de Chocolate": 35.0, 
+        "Licuado de Plátano": 35.0
     },
-    "🥤 Licuados (1 Litro)": {
-        "Licuado de Fresa (1 L)": 70.0, "Licuado de Chocolate (1 L)": 70.0, "Licuado de Plátano (1 L)": 70.0
-    },
-    "🍹 Aguas Frescas (1 Litro)": {
-        "Agua de Café (1 L)": 40.0, "Agua de Mazapán (1 L)": 40.0, "Agua de Fresa (1 L)": 40.0,
-        "Agua de Limón (1 L)": 40.0, "Agua de Melón (1 L)": 40.0, "Agua de Piña (1 L)": 40.0,
-        "Agua de Sandía (1 L)": 40.0, "Agua de Guayaba (1 L)": 40.0, "Agua de Avena (1 L)": 40.0
+    "🍹 Aguas Frescas": {
+        "Agua de Café": 25.0, "Agua de Mazapán": 25.0, "Agua de Fresa": 25.0,
+        "Agua de Limón": 25.0, "Agua de Melón": 25.0, "Agua de Piña": 25.0,
+        "Agua de Sandía": 25.0, "Agua de Guayaba": 25.0, "Agua de Avena": 25.0
     },
     "🥤 Jugos Naturales": {
         "Jugo Verde": 35.0,
@@ -311,6 +310,18 @@ with tab_cliente:
                                 ing_pambazo = st.text_input("¿De qué ingrediente quieres tu pambazo especial? (Ej. Tinga, Suadero)", placeholder="Escribe el ingrediente aquí", key=f"ing_pamba_{prod}")
                                 if ing_pambazo:
                                     agregado_texto = f" de {ing_pambazo}"
+
+                            elif "Licuado" in prod:
+                                tamanio_licuado = st.selectbox("Tamaño:", ["1/2 Litro ($35.00)", "1 Litro (+$35.00)"], key=f"tam_{prod}")
+                                if "1 Litro" in tamanio_licuado:
+                                    precio_final_prod = 70.0
+                                agregado_texto = f" ({tamanio_licuado.split(' ')[0]} L)"
+
+                            elif "Agua" in prod:
+                                tamanio_agua = st.selectbox("Tamaño:", ["1/2 Litro ($25.00)", "1 Litro (+$15.00)"], key=f"tam_{prod}")
+                                if "1 Litro" in tamanio_agua:
+                                    precio_final_prod = 40.0
+                                agregado_texto = f" ({tamanio_agua.split(' ')[0]} L)"
 
                             elif "Jugo" in prod:
                                 tamanio_jugo = st.selectbox("Tamaño:", ["Chico (1/2 L)", "Grande (1 L) (+$20.00)"], key=f"tam_{prod}")
