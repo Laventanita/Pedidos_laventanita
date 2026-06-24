@@ -94,14 +94,14 @@ MENU = {
         "Agua de Sandía (1 L)": 40.0, "Agua de Guayaba (1 L)": 40.0, "Agua de Avena (1 L)": 40.0
     },
     "🥤 Jugos Naturales": {
-        # PRÓXIMAMENTE: Agrega tus jugos aquí cuando los tengas listos, ej:
-        # "Jugo de Naranja": 35.0,
-        # "Jugo Verde": 40.0
+        # Modifica estos productos temporales con tus sabores y precios base reales cuando gustes:
+        "Jugo Verde": 35.0,
+        "Jugo de Naranja": 35.0,
+        "Jugo Combinado": 40.0
     }
 }
 
 # --- PERSISTENCIA AUTOMÁTICA ---
-# Cargamos datos guardados previamente de la URL/Navegador para evitar que se borren al salir
 if 'carrito' not in st.session_state:
     if "rec_cart" in st.query_params:
         try: st.session_state.carrito = json.loads(st.query_params["rec_cart"])
@@ -121,7 +121,6 @@ if 'datos_cliente_persistentes' not in st.session_state:
     else: st.session_state.datos_cliente_persistentes = {"nombre": "", "tel": "", "dir": "", "cp": ""}
 
 def actualizar_memoria_navegador():
-    """ Guarda el estado actual en los parámetros url para recuperarlos si la página se refresca o cierra """
     st.query_params["rec_cart"] = json.dumps(st.session_state.carrito)
     st.query_params["rec_notes"] = json.dumps(st.session_state.notas_productos)
     st.query_params["rec_user"] = json.dumps(st.session_state.datos_cliente_persistentes)
@@ -285,6 +284,12 @@ with tab_cliente:
                                 if ing_pambazo:
                                     agregado_texto = f" de {ing_pambazo}"
 
+                            elif "Jugo" in prod:
+                                tamanio_jugo = st.selectbox("Tamaño:", ["Chico (1/2 L)", "Grande (1 L) (+$20.00)"], key=f"tam_{prod}")
+                                if "Grande" in tamanio_jugo:
+                                    precio_final_prod = precio + 20.0
+                                agregado_texto = f" ({tamanio_jugo})"
+
                             st.write(f"**{prod}{agregado_texto}**\n${precio_final_prod:.2f}")
 
                         with col_controles:
@@ -305,7 +310,7 @@ with tab_cliente:
                                 
                             if cant_actual > 0:
                                 vieja_nota = st.session_state.notas_productos.get(nombre_clave_carrito, "")
-                                nueva_nota = st.text_input("Especificación (Ej: sin verdura):", value=vieja_nota, key=f"nota_input_{nombre_clave_carrito}")
+                                nueva_nota = st.text_input("Especificación (Ej: sin hielo):", value=vieja_nota, key=f"nota_input_{nombre_clave_carrito}")
                                 if nueva_nota != vieja_nota:
                                     st.session_state.notas_productos[nombre_clave_carrito] = nueva_nota
                                     actualizar_memoria_navegador()
@@ -432,7 +437,6 @@ with tab_cliente:
                     elif not nombre_cli or not telefono_cli or (st.session_state.metodo_envio == "🛵 Envío a Domicilio" and not direccion_cli):
                         st.error("⚠️ Por favor completa tu nombre, teléfono y dirección antes de enviar.")
                     else:
-                        # Guardar permanentemente datos de contacto del usuario para su próximo pedido futuro
                         st.session_state.datos_cliente_persistentes = {"nombre": nombre_cli, "tel": telefono_cli, "dir": direccion_cli, "cp": cp_actual if st.session_state.metodo_envio == "🛵 Envío a Domicilio" else ""}
                         
                         fecha_actual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -519,7 +523,7 @@ with tab_admin:
         st.markdown("---")
         st.header("🥦 Control de Disponibilidad del Menú")
         for category, productos in MENU.items():
-            if productos: # Solo iterar si tiene productos cargados
+            if productos: 
                 st.markdown(f"### {category}")
                 for prod in productos.keys():
                     estado_actual = st.session_state.inventario.get(prod, True)
