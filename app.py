@@ -113,7 +113,7 @@ MENU = {
     }
 }
 
-# --- PERSISTENCIA AUTOMÁTICA Y ESTADOS MAESTROS CORREGIDOS ---
+# --- PERSISTENCIA AUTOMÁTICA Y ESTADOS MAESTROS ---
 if 'carrito' not in st.session_state:
     if "rec_cart" in st.query_params:
         try: st.session_state.carrito = json.loads(st.query_params["rec_cart"])
@@ -132,12 +132,10 @@ if 'datos_cliente_persistentes' not in st.session_state:
         except: st.session_state.datos_cliente_persistentes = {"nombre": "", "tel": "", "dir": "", "cp": ""}
     else: st.session_state.datos_cliente_persistentes = {"nombre": "", "tel": "", "dir": "", "cp": ""}
 
-# LÓGICA DE PROTECCIÓN PARA EVITAR RASTREOS ACCIDENTALES COMPARTIDOS
 if 'rastreo_id' not in st.session_state:
     if "tracking_id" in st.query_params:
         try: 
             st.session_state.rastreo_id = int(st.query_params["tracking_id"])
-            # Limpiamos inmediatamente de la URL visible para evitar copias cruzadas
             del st.query_params["tracking_id"]
         except: 
             pass
@@ -153,6 +151,10 @@ def init_db():
                  (clave TEXT PRIMARY KEY, valor TEXT)''')
     
     c.execute("INSERT OR IGNORE INTO configuracion (clave, valor) VALUES ('sistema_abierto', 'True')")
+    
+    # Tabla para el control granular de disponibilidad de platillos
+    c.execute('''CREATE TABLE IF NOT EXISTS inventario_disponibilidad 
+                 (producto TEXT PRIMARY KEY, disponible TEXT)''')
     
     c.execute("PRAGMA table_info(pedidos)")
     columnas = [col[1] for col in c.fetchall()]
@@ -175,6 +177,21 @@ def actualizar_estado_sistema_db(abierto):
     conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
     c = conn.cursor()
     c.execute("INSERT OR REPLACE INTO configuracion (clave, valor) VALUES ('sistema_abierto', ?)", (str(abierto),))
+    conn.commit()
+    conn.close()
+
+def obtener_inventario_db():
+    conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
+    c = conn.cursor()
+    c.execute("SELECT producto, disponible FROM inventario_disponibilidad")
+    filas = c.fetchall()
+    conn.close()
+    return {f[0]: (f[1] == 'True') for f in filas}
+
+def actualizar_producto_inventario_db(producto, disponible):
+    conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
+    c = conn.cursor()
+    c.execute("INSERT OR REPLACE INTO inventario_disponibilidad (producto, disponible) VALUES (?, ?)", (producto, str(disponible)))
     conn.commit()
     conn.close()
 
@@ -223,8 +240,15 @@ def enviar_pedido_telegram(id_pedido, nombre, telefono, direccion, tipo_entrega,
 
 init_db()
 
-# Cargar el estado maestro en tiempo real desde la DB SQLite compartida
+# Cargar estados dinámicos desde la BD en cada ejecución limpia
 sistema_abierto_real = obtener_estado_sistema_db()
+inventario_real = obtener_inventario_db()
+
+# Sincronizar session_state local con el almacenamiento de la DB
+st.session_state.inventario = {}
+for categoria, productos in MENU.items():
+    for prod in productos.keys():
+        st.session_state.inventario[prod] = inventario_real.get(prod, True)
 
 def actualizar_memoria_navegador():
     try:
@@ -233,12 +257,6 @@ def actualizar_memoria_navegador():
         st.query_params["rec_user"] = json.dumps(st.session_state.datos_cliente_persistentes)
     except Exception:
         pass
-
-if 'inventario' not in st.session_state:
-    st.session_state.inventario = {}
-    for categoria, productos in MENU.items():
-        for prod in productos.keys():
-            st.session_state.inventario[prod] = True
 
 tab_cliente, tab_admin = st.tabs(["📋 Menú para Clientes", "🔐 Panel Administrador"])
 
@@ -275,7 +293,6 @@ with tab_cliente:
             st.write(f"**Monto a pagar al recibir:** ${total_c:.2f}")
             st.markdown("---")
             
-            # Botones de control de flujo optimizados
             col_refrescar, col_nuevo = st.columns(2)
             if col_refrescar.button("🔄 Actualizar Estatus Ahora", use_container_width=True):
                 st.rerun()
@@ -285,7 +302,6 @@ with tab_cliente:
                 st.query_params.clear()
                 st.rerun()
 
-            # Autorefresh lento y controlado solo en la pantalla de rastreo para no saturar
             time.sleep(30)
             st.rerun()
         else:
@@ -501,7 +517,7 @@ with tab_cliente:
                     p_nombre, p_extra, _ = clave_carrito.split("|||")
                     nota_especifica = st.session_state.notas_productos.get(clave_carrito, "").strip()
                     nota_pantalla = f" *[Nota: {nota_especifica}]*" if nota_especifica else ""
-                    st.write(f"  • {cant}x {p_nombre}{p_extra}{nota_pantalla}")
+                    st.write(f"   • {cant}x {p_nombre}{p_extra}{nota_pantalla}")
                 
                 st.write(f"• **Subtotal Platillos:** ${total_productos:.2f}")
                 st.write(f"• **Costo de Envío:** ${costo_envio:.2f}" if costo_envio is not None else "**• Costo de Envío:** [BLOQUEADO]")
@@ -548,12 +564,10 @@ with tab_cliente:
                             id_nuevo_pedido = guardar_pedido_db(fecha_actual, nombre_cli, telefono_limpio, dir_final, detalle_ticket_texto, total_final, cambio_txt)
                             enviar_pedido_telegram(id_nuevo_pedido, nombre_cli, telefono_limpio, direccion_cli if direccion_cli else "Recoge en Local", tipo_entrega_txt, costo_envio, propina_mensaje_telegram, detalle_ticket_texto, total_final, cambio_txt)
                             
-                            # Fijar sesión interna
                             st.session_state.rastreo_id = id_nuevo_pedido
                             st.session_state.carrito = {}
                             st.session_state.notas_productos = {}
                             
-                            # Limpieza completa de URL viejas para resguardar la privacidad de los clientes
                             st.query_params.clear()
                             st.query_params["rec_user"] = json.dumps(st.session_state.datos_cliente_persistentes)
                             st.rerun()
@@ -574,133 +588,117 @@ with tab_admin:
         # --- INTERRUPTOR MAESTRO PERSISTENTE ---
         st.header("🚨 Estado del Establecimiento")
         texto_estado_actual = "🟢 Abierto (Recibiendo pedidos)" if sistema_abierto_real else "🔴 Cerrado (No recibir pedidos)"
+        st.markdown(f"**Estatus actual en Base de Datos:** {texto_estado_actual}")
         
         estado_toggle = st.toggle("Modificar estado de la cocina", value=sistema_abierto_real, help="Apaga este botón para pausar de inmediato la entrada de pedidos de todos los usuarios.")
         
         if estado_toggle != sistema_abierto_real:
             actualizar_estado_sistema_db(estado_toggle)
-            st.toast(f"El estado global cambió a: {'Abierto' if estado_toggle else 'Cerrado'}")
-            time.sleep(0.5)
+            st.success(f"Sistema cambiado exitosamente a: {'ABIERTO' if estado_toggle else 'CERRADO'}")
             st.rerun()
-        
-        st.markdown(f"El negocio actualmente está: **{texto_estado_actual}**")
-        st.markdown("---")
-        
-        # --- HISTORIAL DE VENTAS POR DÍA ---
-        st.header("📊 Historial de Ventas e Ingresos")
-        dia_busqueda = st.date_input("Selecciona el día para ver el reporte de ventas:", value=date.today())
-        dia_str = dia_busqueda.strftime("%Y-%m-%d")
-        
-        conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
-        c = conn.cursor()
-        c.execute("SELECT id, nombre, total, metodo_pago, estado FROM pedidos WHERE fecha LIKE ? AND estado != 'Cancelado'", (f"{dia_str}%",))
-        ventas_dia = c.fetchall()
-        
-        c.execute("SELECT COUNT(id) FROM pedidos WHERE fecha LIKE ?", (f"{dia_str}%",))
-        total_pedidos_creados = c.fetchone()[0]
-        conn.close()
-        
-        monto_total_dia = sum(v[2] for v in ventas_dia)
-        
-        col_m1, col_m2 = st.columns(2)
-        col_m1.metric(label="💰 Ingresos del Día (Sin Cancelados)", value=f"${monto_total_dia:.2f}")
-        col_m2.metric(label="📦 Pedidos Totales Solicitados", value=str(total_pedidos_creados))
-        
-        if ventas_dia:
-            with st.expander("📄 Ver desglose de folios de este día"):
-                tabla_reporte = []
-                for v in ventas_dia:
-                    tabla_reporte.append({
-                        "Folio": f"#{v[0]}",
-                        "Cliente": v[1],
-                        "Monto": f"${v[2]:.2f}",
-                        "Pago": v[3],
-                        "Estatus": v[4]
-                    })
-                st.table(tabla_reporte)
-        else:
-            st.caption("No hay registros de ventas cobradas para la fecha seleccionada.")
             
         st.markdown("---")
-        st.header("📥 Gestión de Pedidos Activos")
-        st.write("Cambia el estado de los pedidos aquí abajo:")
         
-        conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
+        # --- GESTIÓN DE PEDIDOS ---
+        st.header("📦 Monitor y Gestión de Pedidos")
+        
+        # Filtros de visualización
+        ver_archivados = st.checkbox("Ver pedidos archivados/históricos")
+        
+        conn = sqlite3.connect('pedidos_negocio.db')
         c = conn.cursor()
-        c.execute("SELECT id, fecha, nombre, telefono, direccion, pedido, total, estado, metodo_pago FROM pedidos WHERE archivado = 0 ORDER BY id DESC")
-        pedidos_activos = c.fetchall()
+        if ver_archivados:
+            c.execute("SELECT id, fecha, nombre, telefono, direccion, pedido, total, estado, metodo_pago FROM pedidos WHERE archivado = 1 ORDER BY id DESC")
+        else:
+            c.execute("SELECT id, fecha, nombre, telefono, direccion, pedido, total, estado, metodo_pago FROM pedidos WHERE archivado = 0 ORDER BY id DESC")
+        
+        pedidos_raw = c.fetchall()
         conn.close()
         
-        if pedidos_activos:
-            for ped in pedidos_activos:
-                p_id, p_fecha, p_nombre, p_tel, p_dir, p_det, p_tot, p_est, p_pago = ped
+        if not pedidos_raw:
+            st.info("No hay pedidos registrados bajo este criterio de filtro.")
+        else:
+            for pedido_id, p_fecha, p_nombre, p_tel, p_dir, p_detalle, p_total, p_estado, p_pago in pedidos_raw:
+                color_tarjeta = "lightblue" if p_estado == "Pendiente" else "orange" if p_estado == "En Cocina" else "lightgreen" if p_estado == "En Camino" else "lightgray"
                 
-                with st.container(border=True): 
-                    col_det, col_est = st.columns([2, 1])
-                    with col_det:
-                        st.markdown(f"### 📦 Folio: #{p_id} — {p_nombre}")
-                        st.write(f"📅 **Fecha:** {p_fecha}")
+                with st.container(border=True):
+                    col_id, col_info_p = st.columns([1, 4])
+                    
+                    with col_id:
+                        st.markdown(f"### #{pedido_id}")
+                        st.markdown(f"<span style='background-color:{color_tarjeta}; padding:4px; border-radius:4px; font-weight:bold;'>{p_estado}</span>", unsafe_allow_html=True)
                         
-                        msg_whatsapp = f"¡Hola {p_nombre}! Te contactamos de La Ventanita / Tacos Mixi sobre tu pedido con folio #{p_id}."
-                        msg_encoded = urllib.parse.quote(msg_whatsapp)
-                        url_whatsapp = f"https://wa.me/52{p_tel}?text={msg_encoded}"
-                        
-                        st.markdown(f"📞 **Teléfono:** {p_tel}")
-                        st.link_button("💬 Abrir WhatsApp", url_whatsapp, type="secondary", use_container_width=False)
-                        
-                        st.write(f"📍 **Dirección:** {p_dir}")
+                    with col_info_p:
+                        st.write(f"📅 **Fecha:** {p_fecha} | 👤 **Cliente:** {p_nombre} | 📞 **Tel:** {p_tel}")
+                        st.write(f"📍 **Entrega:** {p_dir}")
                         st.write(f"💳 **Pago:** {p_pago}")
-                        st.text(f"Detalle:\n{p_det}")
-                        st.markdown(f"**Total a cobrar: ${p_tot:.2f}**")
                         
-                    with col_est:
-                        st.markdown(f"**Estado actual: `{p_est}`**")
+                    st.text_area("🛒 Contenido de la Orden", value=p_detalle, height=110, key=f"det_view_{pedido_id}", disabled=True)
+                    st.markdown(f"### **Total Cobro: ${p_total:.2f}**")
+                    
+                    # Controles de actualización de estatus individuales
+                    c1, c2, c3, c4, c5 = st.columns(5)
+                    
+                    if c1.button("🍳 Cocina", key=f"btn_cocina_{pedido_id}", disabled=(p_estado == "En Cocina")):
+                        conn = sqlite3.connect('pedidos_negocio.db')
+                        conn.cursor().execute("UPDATE pedidos SET estado = 'En Cocina' WHERE id = ?", (pedido_id,))
+                        conn.commit()
+                        conn.close()
+                        st.rerun()
                         
-                        with st.form(key=f"form_admin_status_{p_id}"):
-                            nuevo_est = st.selectbox(
-                                "Modificar Estatus:", 
-                                ["Pendiente", "En Cocina", "En Camino", "Entregado", "Cancelado"],
-                                index=["Pendiente", "En Cocina", "En Camino", "Entregado", "Cancelado"].index(p_est)
-                            )
-                            submit_status = st.form_submit_button("💾 Actualizar", use_container_width=True)
-                            
-                            if submit_status and nuevo_est != p_est:
-                                conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
-                                c = conn.cursor()
-                                c.execute("UPDATE pedidos SET estado = ? WHERE id = ?", (nuevo_est, p_id))
-                                conn.commit()
-                                conn.close()
-                                st.toast(f"¡Pedido #{p_id} actualizado a {nuevo_est}!")
-                                time.sleep(0.5)
-                                st.rerun()
-                            
-                        if p_est in ["Entregado", "Cancelado"]:
-                            if st.button("🗂️ Archivar Pedido", key=f"archive_btn_{p_id}", use_container_width=True):
-                                conn = sqlite3.connect('pedidos_negocio.db', timeout=10)
-                                c = conn.cursor()
-                                c.execute("UPDATE pedidos SET archivado = 1 WHERE id = ?", (p_id,))
-                                conn.commit()
-                                conn.close()
-                                st.toast(f"Pedido #{p_id} guardado en el archivo histórico.")
-                                time.sleep(0.5)
-                                st.rerun()
-        else:
-            st.info("No tienes ningún pedido activo en este momento.")
-            
-        st.markdown("---")
-        st.header("🥦 Control de Disponibilidad del Menú")
-        for category, productos in MENU.items():
-            if productos: 
-                st.markdown(f"### {category}")
-                for prod in productos.keys():
-                    estado_actual = st.session_state.inventario.get(prod, True)
-                    nuevo_estado = st.toggle(f"Disponible: {prod}", value=estado_actual, key=f"switch_{prod}")
-                    st.session_state.inventario[prod] = nuevo_estado
+                    if c2.button("🛵 Enviar", key=f"btn_camino_{pedido_id}", disabled=(p_estado == "En Camino")):
+                        conn = sqlite3.connect('pedidos_negocio.db')
+                        conn.cursor().execute("UPDATE pedidos SET estado = 'En Camino' WHERE id = ?", (pedido_id,))
+                        conn.commit()
+                        conn.close()
+                        st.rerun()
+                        
+                    if c3.button("✅ Entregar", key=f"btn_entregado_{pedido_id}", disabled=(p_estado == "Entregado")):
+                        conn = sqlite3.connect('pedidos_negocio.db')
+                        conn.cursor().execute("UPDATE pedidos SET estado = 'Entregado' WHERE id = ?", (pedido_id,))
+                        conn.commit()
+                        conn.close()
+                        st.rerun()
+                        
+                    if c4.button("❌ Cancelar", key=f"btn_cancelar_{pedido_id}", disabled=(p_estado == "Cancelado")):
+                        conn = sqlite3.connect('pedidos_negocio.db')
+                        conn.cursor().execute("UPDATE pedidos SET estado = 'Cancelado' WHERE id = ?", (pedido_id,))
+                        conn.commit()
+                        conn.close()
+                        st.rerun()
+                        
+                    # Lógica de archivado
+                    txt_archivo = "📂 Archivar" if not ver_archivados else "📥 Desarchivar"
+                    val_archivo = 1 if not ver_archivados else 0
+                    if c5.button(txt_archivo, key=f"btn_archiver_{pedido_id}"):
+                        conn = sqlite3.connect('pedidos_negocio.db')
+                        conn.cursor().execute("UPDATE pedidos SET archivado = ? WHERE id = ?", (val_archivo, pedido_id))
+                        conn.commit()
+                        conn.close()
+                        st.success(f"Pedido #{pedido_id} actualizado.")
+                        st.rerun()
 
-        # Botón de refresco manual para el administrador en lugar de bucles forzados automáticos
         st.markdown("---")
-        if st.button("🔄 REFRESCAR PANEL DE CONTROL", type="primary", use_container_width=True):
-            st.rerun()
+        
+        # --- CONTROL DE DISPONIBILIDAD DE PRODUCTOS (INVENTARIO GRANULAR) ---
+        st.header("🍏 Disponibilidad de Platillos (Inventario)")
+        st.write("Desmarca un platillo si se ha agotado en la cocina para que ningún cliente pueda visualizarlo ni agregarlo en la pestaña del menú.")
+        
+        for category, productos in MENU.items():
+            st.subheader(category)
+            cols_inv = st.columns(2)
+            
+            for index, (prod, precio) in enumerate(productos.items()):
+                # Distribuir visualmente en dos columnas organizadas
+                target_col = cols_inv[0] if index % 2 == 0 else cols_inv[1]
                 
+                estado_actual_prod = st.session_state.inventario.get(prod, True)
+                chk_dispo = target_col.checkbox(f"{prod} (${precio:.2f})", value=estado_actual_prod, key=f"inv_chk_{prod}")
+                
+                if chk_dispo != estado_actual_prod:
+                    actualizar_producto_inventario_db(prod, chk_dispo)
+                    st.session_state.inventario[prod] = chk_dispo
+                    st.rerun()
+                    
     elif password_input != "":
-        st.error("Contraseña incorrecta.")
+        st.error("🔑 Contraseña incorrecta. Introduce la clave válida de administrador para ver las operaciones internas.")
