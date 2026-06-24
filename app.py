@@ -57,26 +57,37 @@ MAPA_CODIGOS_POSTALES = {
     "55069": {"nombre": "La Preciosa / Los Pajaritos / La Garita", "costo": 55.0},
 }
 
-# --- INICIALIZAR INVENTARIO ---
-if 'inventario' not in st.session_state:
-    st.session_state.inventario = {
-        "Chilaquiles chicos (80g)": True, "Chilaquiles medianos (170g)": True, "Chilaquiles para acompañar (250g)": True,
-        "Cuernito sencillo": True, "Cuernito con fruta": True,
-        "Licuado de Fresa (1/2 L)": True, "Licuado de Chocolate (1/2 L)": True, "Licuado de Plátano (1/2 L)": True,
-        "Licuado de Fresa (1 L)": True, "Licuado de Chocolate (1 L)": True, "Licuado de Plátano (1 L)": True,
-        "Agua de Café (1 L)": True, "Agua de Mazapán (1 L)": True, "Agua de Fresa (1 L)": True,
-        "Agua de Limón (1 L)": True, "Agua de Melón (1 L)": True, "Agua de Piña (1 L)": True,
-        "Agua de Sandía (1 L)": True, "Agua de Guayaba (1 L)": True, "Agua de Avena (1 L)": True
-    }
-
-# --- MENÚ DE PLATILLOS ---
+# --- CONFIGURACIÓN DEL MENÚ COMPLETO ---
 MENU = {
-    "☕ Desayunos": {
+    "☕ Desayunos (La Ventanita)": {
         "Chilaquiles chicos (80g)": 50.0,
         "Chilaquiles medianos (170g)": 65.0,
         "Chilaquiles para acompañar (250g)": 100.0,
         "Cuernito sencillo": 45.0,
         "Cuernito con fruta": 75.0
+    },
+    "🌮 Los Tacos Mixi": {
+        "Taco de Pastor": 28.0,
+        "Taco de Suadero": 28.0,
+        "Taco de Enchilada": 28.0,
+        "Taco de Bisteck": 28.0,
+        "Taco de Chuleta": 28.0,
+        "Taco Campechano": 28.0
+    },
+    "🫓 Quesadillas": {
+        "Quesadilla de Queso": 25.0,
+        "Quesadilla de Suadero": 28.0,
+        "Quesadilla de Tinga de pollo": 25.0,
+        "Quesadilla de Chicharrón": 25.0,
+        "Quesadilla de Champiñón": 25.0,
+        "Quesadilla de Mollejas": 25.0,
+        "Quesadilla de Pancita": 25.0
+    },
+    "✨ Especialidades Mixi": {
+        "Gordita": 30.0,
+        "Pambazo de Longaniza": 30.0,
+        "Pambazo de Papa": 30.0,
+        "Pambazo Especial (Otro ingrediente)": 35.0
     },
     "🥤 Licuados (1/2 Litro)": {
         "Licuado de Fresa (1/2 L)": 35.0, "Licuado de Chocolate (1/2 L)": 35.0, "Licuado de Plátano (1/2 L)": 35.0
@@ -90,6 +101,13 @@ MENU = {
         "Agua de Sandía (1 L)": 40.0, "Agua de Guayaba (1 L)": 40.0, "Agua de Avena (1 L)": 40.0
     }
 }
+
+# --- INICIALIZAR INVENTARIO AUTOMÁTICO EN SESSION_STATE ---
+if 'inventario' not in st.session_state:
+    st.session_state.inventario = {}
+    for categoria, productos in MENU.items():
+        for prod in productos.keys():
+            st.session_state.inventario[prod] = True
 
 def init_db():
     conn = sqlite3.connect('pedidos_negocio.db')
@@ -193,7 +211,6 @@ with tab_cliente:
                 del st.session_state.rastreo_id
                 st.rerun()
 
-            # Mecanismo de auto-refresco discreto para el cliente (cada 12 segundos)
             time.sleep(12)
             st.rerun()
         else:
@@ -202,7 +219,7 @@ with tab_cliente:
             
     else:
         st.title("La Ventanita & Tacos Mixi")
-        st.write("Arma tu pedido aquí abajo y te lo llevamos hasta tu hogar.")
+        st.write("Arma tu pedido aquí abajo combinando lo mejor de nuestros dos menús.")
 
         if 'carrito' not in st.session_state:
             st.session_state.carrito = {}
@@ -216,24 +233,42 @@ with tab_cliente:
                             continue
                             
                         col1, col2, col3 = st.columns([2, 1, 1])
-                        col1.write(f"**{prod}**\n${precio:.2f}")
                         
-                        salsa = ""
+                        # Manejo de modificadores dinámicos (Salsas / Quesillo)
+                        agregado_texto = ""
+                        precio_final_prod = precio
+                        
                         if "Chilaquiles" in prod:
-                            salsa_elegida = col1.selectbox("Salsa:", ["Verdes", "Rojos"], key=f"salsa_{prod}")
-                            salsa = f" ({salsa_elegida})"
+                            salsa_elegida = col1.selectbox("Salsa:", ["Verdes", "Rojos"], key=f"mod_{prod}")
+                            agregado_texto = f" ({salsa_elegida})"
                         
-                        if col2.button("➕", key=f"add_{prod}"):
-                            nombre_final = f"{prod}{salsa}"
-                            st.session_state.carrito[nombre_final] = st.session_state.carrito.get(nombre_final, 0) + 1
+                        elif "Taco de" in prod and prod != "Taco de Chuleta":
+                            con_q = col1.checkbox("¿Con Quesillo? (+$3.00)", key=f"mod_{prod}")
+                            if con_q:
+                                precio_final_prod = 31.0
+                                agregado_texto = " (Con Quesillo)"
+                                
+                        elif "Quesadilla" in prod or "Gordita" in prod:
+                            con_q = col1.checkbox("¿Con Quesillo? (Lleva a precio fijo de $31 / $33)", key=f"mod_{prod}")
+                            if con_q:
+                                precio_final_prod = 33.0 if "Gordita" in prod else 31.0
+                                agregado_texto = " (Con Quesillo)"
+
+                        col1.write(f"**{prod}{agregado_texto}**\n${precio_final_prod:.2f}")
+                        
+                        if col2.button("➕", key=f"add_{prod}_{agregado_texto}"):
+                            nombre_clave_carrito = f"{prod}|||{agregado_texto}|||{precio_final_prod}"
+                            st.session_state.carrito[nombre_clave_carrito] = st.session_state.carrito.get(nombre_clave_carrito, 0) + 1
                             st.rerun()
                         
+                        # Contar cuántos de este producto base hay en el carrito
                         cant = 0
                         for k, v in st.session_state.carrito.items():
                             if k.startswith(prod):
                                 cant += v
                         col3.write(f"Cant: **{cant}**")
 
+        # Filtrar solo elementos con cantidad > 0
         productos_seleccionados = {k: v for k, v in st.session_state.carrito.items() if v > 0}
 
         if productos_seleccionados:
@@ -243,19 +278,22 @@ with tab_cliente:
             total_productos = 0.0
             detalle_ticket_texto = ""
             
-            for nombre_completo, cant in productos_seleccionados.items():
-                nombre_base = nombre_completo.split(" (Verdes)")[0].split(" (Rojos)")[0]
-                precio_unitario = next(precio for cat in MENU.values() for p, precio in cat.items() if p == nombre_base)
-                subtotal = precio_unitario * cant
+            for clave_carrito, cant in productos_seleccionados.items():
+                # Descomponer la clave del carrito [nombre, extra, precio]
+                p_nombre, p_extra, p_precio_str = clave_carrito.split("|||")
+                precio_item = float(p_precio_str)
+                subtotal = precio_item * cant
                 total_productos += subtotal
                 
+                nombre_pantalla = f"{p_nombre}{p_extra}"
                 col_p, col_b = st.columns([3, 1])
-                col_p.write(f"• {cant}x {nombre_completo} — ${subtotal:.2f}")
-                if col_b.button("❌ Quitar", key=f"del_{nombre_completo}"):
-                    st.session_state.carrito[nombre_completo] -= 1
+                col_p.write(f"• {cant}x {nombre_pantalla} — ${subtotal:.2f}")
+                
+                if col_b.button("❌ Quitar", key=f"del_{clave_carrito}"):
+                    st.session_state.carrito[clave_carrito] -= 1
                     st.rerun()
                     
-                detalle_ticket_texto += f"• {cant}x {nombre_completo} (${precio_unitario:.2f} c/u) — ${subtotal:.2f}\n"
+                detalle_ticket_texto += f"• {cant}x {nombre_pantalla} (${precio_item:.2f} c/u) — ${subtotal:.2f}\n"
                 
             st.markdown(f"**Subtotal de Productos:** ${total_productos:.2f}")
             st.markdown("---")
@@ -316,10 +354,9 @@ with tab_cliente:
             st.markdown("### 📋 Resumen Detallado de tu Cuenta")
             with st.container(border=True):
                 st.markdown("**Artículos solicitados:**")
-                for nombre_completo, cant in productos_seleccionados.items():
-                    nombre_base = nombre_completo.split(" (Verdes)")[0].split(" (Rojos)")[0]
-                    precio_unitario = next(precio for cat in MENU.values() for p, precio in cat.items() if p == nombre_base)
-                    st.write(f"  • {cant}x {nombre_completo} — ${precio_unitario * cant:.2f}")
+                for clave_carrito, cant in productos_seleccionados.items():
+                    p_nombre, p_extra, _ = clave_carrito.split("|||")
+                    st.write(f"  • {cant}x {p_nombre}{p_extra}")
                 
                 st.write(f"**• Subtotal Platillos:** ${total_productos:.2f}")
                 st.write(f"**• Costo de Envío:** ${costo_envio:.2f}" if costo_envio is not None else "**• Costo de Envío:** [BLOQUEADO]")
@@ -373,7 +410,6 @@ with tab_admin:
         st.header("📥 Gestión de Pedidos Activos")
         st.write("Cambia el estado de los pedidos aquí abajo para que los clientes lo vean reflejado en su pantalla en tiempo real:")
         
-        # Leemos los datos actuales de la DB antes de pintar el contenedor dinámico
         conn = sqlite3.connect('pedidos_negocio.db')
         c = conn.cursor()
         c.execute("SELECT id, fecha, nombre, telefono, direccion, pedido, total, estado, metodo_pago FROM pedidos WHERE archivado = 0 ORDER BY id DESC")
@@ -436,7 +472,6 @@ with tab_admin:
                 nuevo_estado = st.toggle(f"Disponible: {prod}", value=estado_actual, key=f"switch_{prod}")
                 st.session_state.inventario[prod] = nuevo_estado
 
-        # Mecanismo de auto-refresco discreto para el administrador (cada 15 segundos)
         time.sleep(15)
         st.rerun()
                 
