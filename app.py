@@ -5,31 +5,35 @@ from datetime import datetime
 import time
 import json
 import re
-import urllib.parse
 import streamlit.components.v1 as components
 
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="La Ventanita & Tacos Mixi", page_icon="🌮", layout="centered")
 
-# --- LÓGICA DE SCROLL AUTOMÁTICO ---
+# --- LÓGICA DE SCROLL ---
 if "scroll_al_top" not in st.session_state:
     st.session_state.scroll_al_top = False
 
 if st.session_state.scroll_al_top:
     components.html(
-        """
-        <script>
-            var mainSection = window.parent.document.querySelector('section.main');
-            if (mainSection) { mainSection.scrollTo({ top: 0, behavior: 'smooth' }); }
-        </script>
-        """, height=0,
+        """<script>window.parent.document.querySelector('section.main').scrollTo({ top: 0, behavior: 'smooth' });</script>""",
+        height=0,
     )
     st.session_state.scroll_al_top = False
 
-# --- CREDENCIALES (Asegúrate de tenerlas en st.secrets) ---
+# --- CREDENCIALES ---
 TOKEN = st.secrets["TELEGRAM_TOKEN"]
 CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
 PASSWORD_ADMIN = "admin123" 
+
+# --- DATOS BANCARIOS ---
+DATOS_BANCO = """
+💰 **DATOS PARA TRANSFERENCIA:**
+- **Banco:** BBVA Bancomer
+- **Cuenta:** 1514123852
+- **Cuenta CLABE:** 012180015141238524
+- **Beneficiario:** Javier Gonzalez Regalado
+"""
 
 # --- CONFIGURACIÓN DE CÓDIGOS POSTALES ---
 MAPA_CODIGOS_POSTALES = {
@@ -67,7 +71,7 @@ MAPA_CODIGOS_POSTALES = {
     "55069": {"nombre": "La Preciosa / Los Pajaritos / La Garita", "costo": 55.0},
 }
 
-# --- MENÚ ---
+# --- MENÚ COMPLETO ---
 MENU = {
     "☕ Desayunos (La Ventanita)": {
         "Chilaquiles chicos (80g)": 50.0,
@@ -111,9 +115,7 @@ MENU = {
         "Pambazo Especial (Otro ingrediente)": 35.0
     },
     "🥤 Licuados": {
-        "Licuado de Fresa": 35.0, 
-        "Licuado de Chocolate": 35.0, 
-        "Licuado de Plátano": 35.0
+        "Licuado de Fresa": 35.0, "Licuado de Chocolate": 35.0, "Licuado de Plátano": 35.0
     },
     "🍹 Aguas Frescas": {
         "Agua de Café": 25.0, "Agua de Mazapán": 25.0, "Agua de Fresa": 25.0,
@@ -121,13 +123,11 @@ MENU = {
         "Agua de Sandía": 25.0, "Agua de Guayaba": 25.0, "Agua de Avena": 25.0
     },
     "🥤 Jugos Naturales": {
-        "Jugo Verde": 35.0,
-        "Jugo de Naranja": 35.0,
-        "Jugo Combinado": 40.0
+        "Jugo Verde": 35.0, "Jugo de Naranja": 35.0, "Jugo Combinado": 40.0
     }
 }
 
-# --- PERSISTENCIA ---
+# --- PERSISTENCIA Y ESTADOS ---
 if 'carrito' not in st.session_state: st.session_state.carrito = {}
 if 'notas_productos' not in st.session_state: st.session_state.notas_productos = {}
 if 'datos_cliente_persistentes' not in st.session_state:
@@ -142,291 +142,330 @@ def init_db():
                   telefono TEXT, direccion TEXT, pedido TEXT, total REAL, estado TEXT, 
                   metodo_pago TEXT, archivado INTEGER DEFAULT 0)''')
     c.execute('''CREATE TABLE IF NOT EXISTS configuracion (clave TEXT PRIMARY KEY, valor TEXT)''')
-    c.execute("INSERT OR IGNORE INTO configuracion (clave, valor) VALUES ('sistema_abierto', 'True')")
+    c.execute("INSERT OR IGNORE INTO configuracion VALUES ('sistema_abierto', 'True')")
     c.execute('''CREATE TABLE IF NOT EXISTS inventario_disponibilidad (producto TEXT PRIMARY KEY, disponible TEXT)''')
     conn.commit()
     conn.close()
 
-def obtener_estado_sistema_db():
+def obtener_estado_sistema():
     conn = sqlite3.connect('pedidos_negocio.db')
-    c = conn.cursor()
-    c.execute("SELECT valor FROM configuracion WHERE clave = 'sistema_abierto'")
-    res = c.fetchone()
+    res = conn.cursor().execute("SELECT valor FROM configuracion WHERE clave='sistema_abierto'").fetchone()
     conn.close()
     return res[0] == 'True' if res else True
 
-def actualizar_estado_sistema_db(abierto):
+def actualizar_estado_sistema(val):
     conn = sqlite3.connect('pedidos_negocio.db')
-    c = conn.cursor()
-    c.execute("INSERT OR REPLACE INTO configuracion (clave, valor) VALUES ('sistema_abierto', ?)", (str(abierto),))
+    conn.cursor().execute("INSERT OR REPLACE INTO configuracion VALUES ('sistema_abierto', ?)", (str(val),))
     conn.commit()
     conn.close()
 
-def obtener_inventario_db():
+def obtener_inventario():
     conn = sqlite3.connect('pedidos_negocio.db')
-    c = conn.cursor()
-    c.execute("SELECT producto, disponible FROM inventario_disponibilidad")
-    filas = c.fetchall()
+    filas = conn.cursor().execute("SELECT producto, disponible FROM inventario_disponibilidad").fetchall()
     conn.close()
     return {f[0]: (f[1] == 'True') for f in filas}
 
-def actualizar_producto_inventario_db(producto, disponible):
+def actualizar_producto_inventario(prod, disp):
     conn = sqlite3.connect('pedidos_negocio.db')
-    c = conn.cursor()
-    c.execute("INSERT OR REPLACE INTO inventario_disponibilidad (producto, disponible) VALUES (?, ?)", (producto, str(disponible)))
+    conn.cursor().execute("INSERT OR REPLACE INTO inventario_disponibilidad VALUES (?, ?)", (prod, str(disp)))
     conn.commit()
     conn.close()
 
-def guardar_pedido_db(fecha, nombre, telefono, direccion, pedido, total, metodo_pago):
-    conn = sqlite3.connect('pedidos_negocio.db')
-    c = conn.cursor()
-    c.execute("INSERT INTO pedidos (fecha, nombre, telefono, direccion, pedido, total, estado, metodo_pago, archivado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)",
-              (fecha, nombre, telefono, direccion, pedido, total, "Pendiente", metodo_pago))
-    last_id = c.lastrowid
-    conn.commit()
-    conn.close()
-    return last_id
-
-def buscar_pedidos_por_telefono(telefono):
-    conn = sqlite3.connect('pedidos_negocio.db')
-    c = conn.cursor()
-    c.execute("SELECT id, fecha, estado, total, pedido FROM pedidos WHERE telefono = ? ORDER BY id DESC LIMIT 5", (telefono,))
-    res = c.fetchall()
-    conn.close()
-    return res
-
-def enviar_pedido_telegram(id_pedido, nombre, telefono, direccion, tipo_entrega, costo_envio, propina_txt, detalle, total, metodo_pago):
+def enviar_pedido_telegram(id_p, nom, tel, dir, env, c_env, prop, det, tot, pago):
     mensaje = (
-        f"🔔 *NUEVO PEDIDO #{id_pedido}*\n"
-        f"👤 {nombre} ({telefono})\n"
-        f"🛵 {tipo_entrega} | 📍 {direccion}\n"
-        f"💳 Pago: {metodo_pago}\n"
+        f"🔔 *NUEVO PEDIDO CONFIRMADO #{id_p}*\n"
+        f"👤 *Cliente:* {nom} ({tel})\n"
+        f"🛵 *Entrega:* {env} | 📍 {dir if dir else 'Recoge en Local'}\n"
+        f"💳 *Pago:* {pago}\n"
         f"---------------------------\n"
-        f"📝 *Pedido:*\n{detalle}\n"
+        f"📝 *Detalle:*\n{det}\n"
         f"---------------------------\n"
-        f"💵 Envío: ${costo_envio:.2f}\n"
-        f"🚴‍♂️ Propina: {propina_txt}\n"
-        f"💰 *TOTAL: ${total:.2f}*"
+        f"💵 *Envío:* ${c_env:.2f} | 🚴‍♂️ *Propina:* {prop}\n"
+        f"💰 *TOTAL A COBRAR: ${tot:.2f}*"
     )
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    payload = {"chat_id": CHAT_ID, "text": mensaje, "parse_mode": "Markdown"}
-    try: requests.post(url, json=payload, timeout=5)
+    try: requests.post(url, json={"chat_id": CHAT_ID, "text": mensaje, "parse_mode": "Markdown"}, timeout=5)
     except: pass
 
 init_db()
-sistema_abierto_real = obtener_estado_sistema_db()
-inventario_real = obtener_inventario_db()
-st.session_state.inventario = {p: inventario_real.get(p, True) for cat in MENU.values() for p in cat}
+sistema_abierto = obtener_estado_sistema()
+inventario_actual = obtener_inventario()
 
-# --- PESTAÑAS ---
-tab_menu, tab_rastreo, tab_admin = st.tabs(["📋 Menú", "🛵 Mis Pedidos", "🔐 Admin"])
+# --- INTERFAZ ---
+tab_menu, tab_rastreo, tab_admin = st.tabs(["📋 Menú para Clientes", "🛵 Mis Pedidos", "🔐 Panel Administrador"])
 
 # =====================================================================
-# 📋 TAB 1: MENÚ PARA CLIENTES
+# 📋 VISTA DEL MENÚ
 # =====================================================================
 with tab_menu:
     st.title("La Ventanita & Tacos Mixi")
     
-    if not sistema_abierto_real:
-        st.error("🛑 COCINA CERRADA POR EL MOMENTO.")
+    if not sistema_abierto:
+        st.error("🛑 **LO SENTIMOS, NUESTRA COCINA SE ENCUENTRA CERRADA POR EL MOMENTO.**")
     else:
-        st.write("¡Haz tu pedido!")
+        st.write("Selecciona tus platillos favoritos abajo.")
 
-    # Bucle del Menú con TODA la lógica de personalización
-    for category, productos in MENU.items():
-        if any(st.session_state.inventario.get(p, True) for p in productos):
-            with st.expander(f"{category}", expanded=True):
-                for prod, precio in productos.items():
-                    if not st.session_state.inventario.get(prod, True): continue
+    # Generación dinámica del menú con botón "Agregar"
+    for categoria, productos in MENU.items():
+        with st.expander(f"{categoria}", expanded=True):
+            for prod, precio in productos.items():
+                if not inventario_actual.get(prod, True):
+                    continue
+                
+                col_i, col_c = st.columns([3, 1])
+                col_i.write(f"**{prod}** — ${precio:.2f}")
+                
+                # Estado del carrito para este producto
+                cant = st.session_state.carrito.get(prod, 0)
+                
+                if cant == 0:
+                    if col_c.button("🛒 Agregar", key=f"add_btn_{prod}"):
+                        st.session_state.carrito[prod] = 1
+                        st.rerun()
+                else:
+                    with col_c:
+                        c1, c2, c3 = st.columns([1, 1, 1])
+                        if c1.button("➖", key=f"min_{prod}"):
+                            st.session_state.carrito[prod] = max(0, cant - 1)
+                            st.rerun()
+                        c2.write(f"**{cant}**")
+                        if c3.button("➕", key=f"pls_{prod}"):
+                            st.session_state.carrito[prod] += 1
+                            st.rerun()
                     
-                    col_i, col_c = st.columns([2, 2])
+                    # Opciones de personalización que aparecen SOLO al agregar
+                    st.write("---")
+                    col_opt, col_nota = st.columns(2)
+                    
                     extra_txt = ""
                     p_final = precio
                     
-                    with col_i:
-                        # --- Lógica de Precios y Opciones ---
+                    with col_opt:
                         if "Chilaquiles" in prod:
-                            s = st.selectbox("Salsa:", ["Verdes", "Rojos"], key=f"s_{prod}")
-                            extra_txt = f" ({s})"
+                            salsa = st.radio("Elige salsa:", ["Verdes", "Rojos"], key=f"opt_{prod}", horizontal=True)
+                            extra_txt = f" ({salsa})"
+                        elif "Taco" in prod:
+                            q = st.checkbox("¿Con Quesillo? (+$3.00)", key=f"opt_{prod}")
+                            g = st.selectbox("Guarnición:", ["Papas", "Nopales", "Papas y Nopales", "Sin nada"], key=f"g_{prod}")
+                            if q: p_final += 3.0; extra_txt = " (Con Quesillo)"
+                            extra_txt += f" [{g}]"
                         elif "Coctel de Mango" in prod:
-                            t = st.selectbox("Tamaño:", ["Chico ($35.00)", "Grande (+$15.00)"], key=f"t_{prod}")
+                            t = st.radio("Tamaño:", ["Chico ($35.00)", "Grande (+$15.00)"], key=f"opt_{prod}", horizontal=True)
                             if "Grande" in t: p_final = 50.0
                             extra_txt = f" [{t}]"
-                        elif "Taco" in prod:
-                            con_q = st.checkbox("¿Con Quesillo? (+$3.00)", key=f"q_{prod}")
-                            guar = st.selectbox("Guarnición:", ["Con papas", "Con nopales", "Ambos", "Sin nada"], key=f"g_{prod}")
-                            if con_q: p_final += 3.0; extra_txt += " (Con Quesillo)"
-                            extra_txt += f" [{guar}]"
-                        elif "Quesadilla" in prod or "Gordita" in prod:
-                            con_q = st.checkbox("¿Con Quesillo?", key=f"q_{prod}")
-                            if con_q: 
-                                p_final = 33.0 if "Gordita" in prod else 31.0
-                                extra_txt = " (Con Quesillo)"
+                        elif "Licuado" in prod or "Agua" in prod or "Jugo" in prod:
+                            t = st.radio("Tamaño:", ["Chico", "Grande"], key=f"opt_{prod}", horizontal=True)
+                            if t == "Grande": p_final += 20.0 # Ajuste de precio por tamaño grande
+                            extra_txt = f" ({t})"
                         elif "Pambazo Especial" in prod:
-                            ing = st.text_input("¿Ingrediente?", key=f"i_{prod}", placeholder="Ej. Tinga")
+                            ing = st.text_input("¿Ingrediente?", key=f"opt_{prod}", placeholder="Tinga, Suadero...")
                             if ing: extra_txt = f" de {ing}"
-                        elif "Licuado" in prod:
-                            t = st.selectbox("Tamaño:", ["1/2 Litro ($35.00)", "1 Litro (+$35.00)"], key=f"l_{prod}")
-                            if "1 Litro" in t: p_final = 70.0
-                            extra_txt = f" ({t})"
-                        elif "Agua" in prod:
-                            t = st.selectbox("Tamaño:", ["1/2 Litro ($25.00)", "1 Litro (+$15.00)"], key=f"a_{prod}")
-                            if "1 Litro" in t: p_final = 40.0
-                            extra_txt = f" ({t})"
-                        elif "Jugo" in prod:
-                            t = st.selectbox("Tamaño:", ["Chico (1/2 L)", "Grande (1 L) (+$20.00)"], key=f"j_{prod}")
-                            if "Grande" in t: p_final = precio + 20.0
-                            extra_txt = f" ({t})"
+                    
+                    with col_nota:
+                        nota = st.text_input("Instrucciones especiales:", key=f"not_{prod}", placeholder="Sin cebolla, muy picante...")
+                        # Guardamos en sesión la combinación específica
+                        st.session_state.notas_productos[prod] = {"extra": extra_txt, "precio_v": p_final, "nota_v": nota}
 
-                        st.write(f"**{prod}{extra_txt}**\n${p_final:.2f}")
-
-                    with col_c:
-                        key_c = f"{prod}|||{extra_txt}|||{p_final}"
-                        cant = st.session_state.carrito.get(key_c, 0)
-                        btn_c1, btn_c2, btn_c3 = st.columns([1,1,1])
-                        if btn_c1.button("➖", key=f"mn_{key_c}"):
-                            st.session_state.carrito[key_c] = max(0, cant - 1)
-                            st.rerun()
-                        btn_c2.markdown(f"<h4 style='text-align:center;'>{cant}</h4>", unsafe_allow_html=True)
-                        if btn_c3.button("➕", key=f"mx_{key_c}"):
-                            st.session_state.carrito[key_c] = cant + 1
-                            st.rerun()
-                        if cant > 0:
-                            st.session_state.notas_productos[key_c] = st.text_input("Nota:", key=f"nt_{key_c}", placeholder="Ej. sin cebolla")
-
-    # --- CIERRE DE PEDIDO ---
-    p_sel = {k: v for k, v in st.session_state.carrito.items() if v > 0}
-    if p_sel and sistema_abierto_real:
-        st.markdown("---")
-        st.subheader("🛒 Entrega y Pago")
+    # --- PROCESO DE COMPRA ---
+    sel = {k: v for k, v in st.session_state.carrito.items() if v > 0}
+    if sel:
+        st.divider()
+        st.subheader("🛒 Resumen y Pago")
         
-        # Subtotal de productos
-        total_p = sum(float(k.split("|||")[2]) * v for k, v in p_sel.items())
+        tot_articulos = 0.0
+        ticket_resumen = ""
+        
+        # Generar ticket visual
+        with st.container(border=True):
+            for p, v in sel.items():
+                data = st.session_state.notas_productos.get(p, {"extra": "", "precio_v": MENU.get(p, 0), "nota_v": ""})
+                sub = data["precio_v"] * v
+                st.write(f"• **{v}x {p}{data['extra']}** — ${sub:.2f}")
+                if data['nota_v']: st.caption(f"  └ Nota: {data['nota_v']}")
+                ticket_resumen += f"• {v}x {p}{data['extra']} ({data['nota_v']}) — ${sub:.2f}\n"
+                tot_articulos += sub
 
-        m_envio = st.selectbox("Método de Entrega", ["🛵 Envío a Domicilio", "🛍️ Recoger en local"])
+        # Configuración de Envío
+        col_env1, col_env2 = st.columns(2)
+        with col_env1:
+            m_envio = st.selectbox("¿Cómo recibes?", ["🛵 Envío a Domicilio", "🛍️ Recoger en local"])
+        
         c_envio = 0.0
         if m_envio == "🛵 Envío a Domicilio":
-            cp = st.text_input("Código Postal (5 dígitos)", value=st.session_state.datos_cliente_persistentes["cp"], max_chars=5)
-            if cp in MAPA_CODIGOS_POSTALES:
-                c_envio = MAPA_CODIGOS_POSTALES[cp]["costo"]
-                st.success(f"📍 Zona: {MAPA_CODIGOS_POSTALES[cp]['nombre']}")
-            elif cp:
-                c_envio = None
-                st.error("❌ Fuera de Cobertura.")
+            with col_env2:
+                cp = st.text_input("Introduce tu Código Postal (5 dígitos):", value=st.session_state.datos_cliente_persistentes["cp"], max_chars=5)
+                if cp in MAPA_CODIGOS_POSTALES:
+                    c_envio = MAPA_CODIGOS_POSTALES[cp]["costo"]
+                    st.success(f"📍 Zona: {MAPA_CODIGOS_POSTALES[cp]['nombre']} (Envío: ${c_envio})")
+                elif cp: 
+                    c_envio = None
+                    st.error("❌ Código Postal fuera de zona de cobertura.")
         
-        prop = st.radio("🚴‍♂️ Propina", ["No agregar", "$10.00", "$15.00", "$20.00", "En efectivo"], horizontal=True)
+        # Propina y Pago
+        prop = st.radio("🚴‍♂️ Propina para el repartidor:", ["No agregar", "$10.00", "$15.00", "$20.00", "En efectivo"], horizontal=True)
         v_prop = 10.0 if "$10" in prop else 15.0 if "$15" in prop else 20.0 if "$20" in prop else 0.0
         
-        m_pago = st.radio("💳 Pago", ["💵 Efectivo", "💳 Tarjeta (Terminal)", "📲 Transferencia"], horizontal=True)
-        c_txt = m_pago
+        m_pago = st.radio("💳 Método de Pago:", ["💵 Efectivo", "💳 Tarjeta (Terminal)", "📲 Transferencia"], horizontal=True)
+        
+        if m_pago == "📲 Transferencia":
+            st.warning(DATOS_BANCO)
+        
+        det_pago = m_pago
         if m_pago == "💵 Efectivo":
-            cam = st.text_input("¿Con cuánto pagas?")
-            c_txt = f"Efectivo (Cambio de {cam})" if cam else "Efectivo"
-        elif m_pago == "📲 Transferencia":
-            st.info("💡 Al confirmar, recibirás los datos de transferencia.")
+            cambio = st.text_input("¿Con cuánto pagas? (Para llevarte cambio):")
+            if cambio: det_pago = f"Efectivo (Cambio de {cambio})"
 
-        total_f = total_p + (c_envio or 0.0) + v_prop
+        # TOTAL FINAL
+        total_final = tot_articulos + (c_envio if c_envio else 0.0) + v_prop
+        st.markdown(f"## **Total Final: ${total_final:.2f}**")
 
-        # --- RESUMEN DETALLADO (TICKET) ---
-        st.markdown("### 📋 Resumen de tu Compra")
-        with st.container(border=True):
-            det_t = ""
-            for k, cant in p_sel.items():
-                nom, ext, pre = k.split("|||")
-                sub = float(pre) * cant
-                nota = st.session_state.notas_productos.get(k, "").strip()
-                st.write(f"• {cant}x {nom}{ext} {'('+nota+')' if nota else ''} — **${sub:.2f}**")
-                det_t += f"• {cant}x {nom}{ext} {'('+nota+')' if nota else ''} — ${sub:.2f}\n"
-            st.markdown("---")
-            st.write(f"🏠 Envío: ${c_envio:.2f}" if c_envio is not None else "🏠 Envío: --")
-            st.write(f"🎁 Propina: ${v_prop:.2f}")
-            st.write(f"💳 Pago: {m_pago}")
-            st.markdown(f"## **Total Final: ${total_f:.2f}**")
-
-        with st.form("conf_form"):
-            st.subheader("👤 Datos de contacto")
-            nom_f = st.text_input("Nombre Completo *", value=st.session_state.datos_cliente_persistentes["nombre"])
-            tel_f = st.text_input("Teléfono (10 dígitos) *", value=st.session_state.datos_cliente_persistentes["tel"])
-            dir_f = st.text_area("Dirección *", value=st.session_state.datos_cliente_persistentes["dir"]) if m_envio == "🛵 Envío a Domicilio" else ""
+        # FORMULARIO FINAL
+        with st.form("form_pedido"):
+            st.subheader("👤 Datos del Cliente")
+            nom_c = st.text_input("Nombre Completo *", value=st.session_state.datos_cliente_persistentes["nombre"])
+            tel_c = st.text_input("Teléfono de contacto (10 dígitos) *", value=st.session_state.datos_cliente_persistentes["tel"])
+            dir_c = st.text_area("Dirección Completa (Calle, No, Colonia, Referencias) *", value=st.session_state.datos_cliente_persistentes["dir"]) if m_envio == "🛵 Envío a Domicilio" else ""
             
             if st.form_submit_button("🚀 CONFIRMAR Y ENVIAR PEDIDO"):
-                t_limp = re.sub(r"\D", "", tel_f)
-                if len(t_limp) == 10 and nom_f and (dir_f or m_envio != "🛵 Envío a Domicilio") and c_envio is not None:
-                    # Guardar datos
-                    st.session_state.datos_cliente_persistentes = {"nombre": nom_f, "tel": t_limp, "dir": dir_f, "cp": cp if 'cp' in locals() else ""}
-                    id_ord = guardar_pedido_db(datetime.now().strftime("%Y-%m-%d %H:%M"), nom_f, t_limp, dir_f, det_t, total_f, c_txt)
-                    enviar_pedido_telegram(id_ord, nom_f, t_limp, dir_f, m_envio, (c_envio or 0.0), prop, det_t, total_f, c_txt)
-                    # Reset
+                t_limpio = re.sub(r"\D", "", tel_c)
+                if len(t_limpio) == 10 and nom_c and (dir_c or m_envio != "🛵 Envío a Domicilio") and c_envio is not None:
+                    # Guardar en sesión
+                    st.session_state.datos_cliente_persistentes = {"nombre": nom_c, "tel": t_limpio, "dir": dir_c, "cp": cp if 'cp' in locals() else ""}
+                    
+                    # Guardar en DB
+                    conn = sqlite3.connect('pedidos_negocio.db')
+                    id_pedido = conn.cursor().execute(
+                        "INSERT INTO pedidos (fecha, nombre, telefono, direccion, pedido, total, estado, metodo_pago) VALUES (?,?,?,?,?,?,?,?)",
+                        (datetime.now().strftime("%d/%m %H:%M"), nom_c, t_limpio, dir_c, ticket_resumen, total_final, "Pendiente", det_pago)
+                    ).lastrowid
+                    conn.commit(); conn.close()
+                    
+                    # Telegram
+                    enviar_pedido_telegram(id_pedido, nom_c, t_limpio, dir_c, m_envio, (c_envio or 0.0), prop, ticket_resumen, total_final, det_pago)
+                    
+                    # Limpiar y Notificar
                     st.session_state.carrito = {}
-                    st.success(f"✅ ¡Pedido enviado! Folio #{id_ord}")
-                    time.sleep(2)
+                    st.success(f"✅ ¡Pedido recibido con éxito! Tu Folio es el #{id_pedido}")
+                    if m_pago == "📲 Transferencia": st.info(DATOS_BANCO)
+                    time.sleep(3)
                     st.rerun()
-                else: st.error("⚠️ Verifica tus datos.")
+                else:
+                    st.error("⚠️ Error: Revisa que tu teléfono tenga 10 dígitos y que los campos marcados con (*) no estén vacíos.")
 
 # =====================================================================
-# 🛵 TAB 2: MIS PEDIDOS (MULTI-USUARIO)
+# 🛵 RASTREO DE PEDIDOS (MULTI-USUARIO)
 # =====================================================================
 with tab_rastreo:
     st.header("🔍 Rastrea tus pedidos")
-    t_sesion = st.session_state.datos_cliente_persistentes.get("tel", "")
-    input_rastreo = st.text_input("Ingresa tu teléfono:", value=t_sesion)
+    t_rastreo = st.session_state.datos_cliente_persistentes.get("tel", "")
+    input_tel = st.text_input("Introduce tu número de teléfono para buscar tus pedidos:", value=t_rastreo)
     
-    if input_rastreo:
-        t_rastreo = re.sub(r"\D", "", input_rastreo)
-        if len(t_rastreo) == 10:
-            peds_u = buscar_pedidos_por_telefono(t_rastreo)
-            if not peds_u: st.info("No hay pedidos con este número.")
-            for pid, pfe, pest, ptot, pdet in peds_u:
-                with st.container(border=True):
-                    c1, c2 = st.columns([1, 2])
-                    c1.markdown(f"### #{pid}"); c1.caption(pfe)
-                    c2.write(f"**Estado:** {pest}")
-                    prog = 0.15 if pest=="Pendiente" else 0.5 if pest=="En Cocina" else 0.8 if pest=="En Camino" else 1.0
-                    if pest == "Cancelado": st.error("Cancelado")
-                    else: st.progress(prog)
-                    with st.expander("Ver ticket"):
-                        st.text(pdet); st.write(f"**Total: ${ptot:.2f}**")
-            if st.button("🔄 Actualizar"): st.rerun()
+    if input_tel:
+        tel_busqueda = re.sub(r"\D", "", input_tel)
+        if len(tel_busqueda) == 10:
+            historial = buscar_pedidos_por_telefono(tel_busqueda)
+            if not historial:
+                st.info("No se encontraron pedidos recientes vinculados a este número.")
+            else:
+                for pid, pfe, pest, ptot, pdet in historial:
+                    with st.container(border=True):
+                        col_h1, col_h2 = st.columns([1, 2])
+                        with col_h1:
+                            st.markdown(f"### Folio #{pid}")
+                            st.caption(f"Fecha: {pfe}")
+                        with col_h2:
+                            # Visualización de estado
+                            if pest == "Pendiente": 
+                                st.warning("⏳ Pendiente: Esperando que la cocina reciba tu orden.")
+                                st.progress(0.2)
+                            elif pest == "En Cocina":
+                                st.info("🍳 En Cocina: El chef está preparando tus platillos.")
+                                st.progress(0.5)
+                            elif pest == "En Camino":
+                                st.success("🛵 En Camino: ¡Tu pedido va hacia tu domicilio!")
+                                st.progress(0.8)
+                            elif pest == "Entregado":
+                                st.success("✅ Entregado: ¡Buen provecho!")
+                                st.progress(1.0)
+                            elif pest == "Cancelado":
+                                st.error("❌ Cancelado: Este pedido ha sido cancelado.")
+                        
+                        with st.expander("Ver detalles de lo que pediste"):
+                            st.text(pdet)
+                            st.write(f"**Monto total:** ${ptot:.2f}")
+                
+                if st.button("🔄 Actualizar Estatus"): st.rerun()
 
 # =====================================================================
-# 🔐 TAB 3: ADMIN
+# 🔐 PANEL ADMINISTRADOR
 # =====================================================================
 with tab_admin:
-    pw = st.text_input("Clave", type="password")
-    if pw == PASSWORD_ADMIN:
-        st.header("Admin Panel")
-        ab = st.toggle("Local Abierto", value=sistema_abierto_real)
-        if ab != sistema_abierto_real: actualizar_estado_sistema_db(ab); st.rerun()
+    st.title("Panel de Control")
+    password = st.text_input("Introduce la clave de acceso:", type="password")
+    
+    if password == PASSWORD_ADMIN:
+        # Control Maestro
+        st.subheader("Estado del Establecimiento")
+        abierto_val = st.toggle("¿Cocina Abierta?", value=sistema_abierto)
+        if abierto_val != sistema_abierto:
+            actualizar_estado_sistema(abierto_val)
+            st.rerun()
+            
+        # Pedidos Activos
+        st.divider()
+        st.subheader("📦 Gestión de Pedidos")
         
-        # Pedidos
-        st.subheader("Pedidos Activos")
         conn = sqlite3.connect('pedidos_negocio.db')
-        cur = conn.cursor()
-        cur.execute("SELECT id, fecha, nombre, telefono, direccion, pedido, total, estado, metodo_pago FROM pedidos WHERE archivado = 0 ORDER BY id DESC")
-        datos_a = cur.fetchall()
+        pedidos_raw = conn.cursor().execute("SELECT id, fecha, nombre, telefono, direccion, pedido, total, estado, metodo_pago FROM pedidos WHERE archivado=0 ORDER BY id DESC").fetchall()
         conn.close()
+        
+        if not pedidos_raw:
+            st.info("No hay pedidos activos por ahora.")
+        else:
+            for pid, pf, pnom, ptel, pdir, pdet, ptot, pest, ppag in pedidos_raw:
+                with st.container(border=True):
+                    st.write(f"### Pedido #{pid} - {pnom}")
+                    st.caption(f"📅 {pf} | 📞 {ptel} | 📍 {pdir if pdir else 'Recoge en Local'}")
+                    st.text(pdet)
+                    st.write(f"💰 **Total: ${ptot:.2f}** | 💳 **Pago: {ppag}**")
+                    
+                    st.write("**Cambiar Estado:**")
+                    c_btns = st.columns(5)
+                    
+                    # Botones con lógica de resalte
+                    def btn_status(col, label, target, current, pid):
+                        # Si es el estado actual, el botón se ve "activo" con un emoji diferente
+                        txt = f"📍 {label.upper()}" if current == target else label
+                        if col.button(txt, key=f"adm_{pid}_{target}"):
+                            conn = sqlite3.connect('pedidos_negocio.db')
+                            conn.cursor().execute("UPDATE pedidos SET estado=? WHERE id=?", (target, pid))
+                            conn.commit(); conn.close()
+                            st.rerun()
 
-        for pid, pf, pnom, ptel, pdir, pdet, ptot, pest, ppag in datos_a:
-            with st.container(border=True):
-                st.write(f"**#{pid} - {pnom} ({ptel})** | Total: ${ptot}")
-                st.text(pdet)
-                c_b = st.columns(5)
-                if c_b[0].button("🍳", key=f"a1_{pid}"): 
-                    conn=sqlite3.connect('pedidos_negocio.db'); conn.cursor().execute("UPDATE pedidos SET estado='En Cocina' WHERE id=?", (pid,)); conn.commit(); conn.close(); st.rerun()
-                if c_b[1].button("🛵", key=f"a2_{pid}"):
-                    conn=sqlite3.connect('pedidos_negocio.db'); conn.cursor().execute("UPDATE pedidos SET estado='En Camino' WHERE id=?", (pid,)); conn.commit(); conn.close(); st.rerun()
-                if c_b[2].button("✅", key=f"a3_{pid}"):
-                    conn=sqlite3.connect('pedidos_negocio.db'); conn.cursor().execute("UPDATE pedidos SET estado='Entregado' WHERE id=?", (pid,)); conn.commit(); conn.close(); st.rerun()
-                if c_b[3].button("❌", key=f"a4_{pid}"):
-                    conn=sqlite3.connect('pedidos_negocio.db'); conn.cursor().execute("UPDATE pedidos SET estado='Cancelado' WHERE id=?", (pid,)); conn.commit(); conn.close(); st.rerun()
-                if c_b[4].button("📂", key=f"a5_{pid}"):
-                    conn=sqlite3.connect('pedidos_negocio.db'); conn.cursor().execute("UPDATE pedidos SET archivado=1 WHERE id=?", (pid,)); conn.commit(); conn.close(); st.rerun()
+                    btn_status(c_btns[0], "⏳ Pendiente", "Pendiente", pest, pid)
+                    btn_status(c_btns[1], "🍳 Cocina", "En Cocina", pest, pid)
+                    btn_status(c_btns[2], "🛵 Camino", "En Camino", pest, pid)
+                    btn_status(c_btns[3], "✅ OK", "Entregado", pest, pid)
+                    btn_status(c_btns[4], "❌ X", "Cancelado", pest, pid)
+                    
+                    if st.button(f"📂 Archivar Pedido #{pid}", key=f"arch_{pid}"):
+                        conn = sqlite3.connect('pedidos_negocio.db')
+                        conn.cursor().execute("UPDATE pedidos SET archivado=1 WHERE id=?", (pid,))
+                        conn.commit(); conn.close()
+                        st.rerun()
 
         # Inventario
-        st.subheader("Disponibilidad")
-        for cat, prds in MENU.items():
+        st.divider()
+        st.subheader("🍏 Disponibilidad de Platillos")
+        for cat, prods in MENU.items():
             st.write(f"**{cat}**")
-            for p in prds:
-                check = st.checkbox(p, value=st.session_state.inventario.get(p, True), key=f"iv_{p}")
-                if check != st.session_state.inventario.get(p, True):
-                    actualizar_producto_inventario_db(p, check); st.rerun()
+            cols_inv = st.columns(2)
+            for i, p in enumerate(prods):
+                target_col = cols_inv[0] if i % 2 == 0 else cols_inv[1]
+                st_disp = inventario_actual.get(p, True)
+                if target_col.checkbox(p, value=st_disp, key=f"inv_{p}") != st_disp:
+                    actualizar_producto_inventario(p, not st_disp)
+                    st.rerun()
+
+    elif password != "":
+        st.error("Contraseña incorrecta.")
