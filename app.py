@@ -345,7 +345,7 @@ with tab_cliente:
         for category, productos in MENU.items():
             al_menos_uno_disponible = any(st.session_state.inventario.get(p, True) for p in productos)
             if al_menos_uno_disponible:
-                with st.expander(f"{category}", expanded=True):
+                with st.expander(f"{category}", expanded=False):
                     for prod, precio in productos.items():
                         if not st.session_state.inventario.get(prod, True):
                             continue
