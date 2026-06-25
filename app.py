@@ -541,6 +541,7 @@ with tab_cliente:
 **Cuenta:** 1514123852
 **Cuenta CLABE:** 012180015141238524
 **Beneficiario:** Javier Gonzalez Regalado""")
+** Enviar Comprobante:** 5574277297                
                 cambio_txt = "Transferencia (Confirmar comprobante)"
 
             st.markdown("### 📋 Resumen Detallado de tu Cuenta")
