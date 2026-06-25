@@ -12,6 +12,12 @@ import streamlit.components.v1 as components
 # --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(page_title="La Ventanita & Tacos Mixi", page_icon="🌮", layout="centered")
 
+# --- LOGO ---
+col_logo1, col_logo2, col_logo3 = st.columns([1, 2, 1])
+with col_logo2:
+    st.image("Logo.png", use_container_width=True)
+
+
 # --- LÓGICA DE SCROLL AUTOMÁTICO ---
 if "scroll_al_top" not in st.session_state:
     st.session_state.scroll_al_top = False
