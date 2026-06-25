@@ -773,3 +773,14 @@ with tab_admin:
                     
     elif password_input != "":
         st.error("🔑 Contraseña incorrecta. Introduce la clave válida de administrador para ver las operaciones internas.")
+
+# --- SECCIÓN DE UBICACIÓN ---
+st.markdown("---")
+st.subheader("📍 ¿Dónde estamos?")
+st.write("Visítanos en: **Vicente Suárez 260, Ozumbilla, 55766 Ojo de Agua, Méx.**")
+
+mapa_html = """
+<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d939.2451426182696!2d-99.00077873040176!3d19.67083429885376!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85d1ed9c974e4373%3A0xc8ccb86531a4b053!2sVicente%20Su%C3%A1rez%20260%2C%20Ozumbilla%2C%2055766%20Ojo%20de%20Agua%2C%20M%C3%A9x.%2C%20Mexico!5e0!3m2!1sen!2sus!4v1782414423748!5m2!1sen!2sus" 
+width="100%" height="300" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+"""
+components.html(mapa_html, height=320)
