@@ -536,7 +536,7 @@ with tab_cliente:
                 st.info("💡 **Nota:** El repartidor llevará la terminal física para realizar su cobro al recibir.")
                 cambio_txt = "Tarjeta (Llevar terminal física)"
             elif tipo_pago == "📲 Transferencia":
-                elif tipo_pago == "📲 Transferencia":
+            
                 st.warning(
                     "🏛️ **DATOS PARA TRANSFERENCIA:**\n\n"
                     "**Banco:** BBVA Bancomer\n"
