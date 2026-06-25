@@ -536,13 +536,17 @@ with tab_cliente:
                 st.info("💡 **Nota:** El repartidor llevará la terminal física para realizar su cobro al recibir.")
                 cambio_txt = "Tarjeta (Llevar terminal física)"
             elif tipo_pago == "📲 Transferencia":
-                st.warning("""🏦 **DATOS PARA TRANSFERENCIA:**
-**Banco:** BBVA Bancomer
-**Cuenta:** 1514123852
-**Cuenta CLABE:** 012180015141238524
-**Beneficiario:** Javier Gonzalez Regalado""")
-**Enviar Comprobante:** 5574277297                
-                cambio_txt = "Transferencia (Confirmar comprobante)"
+                elif tipo_pago == "📲 Transferencia":
+                st.warning(
+                    "🏛️ **DATOS PARA TRANSFERENCIA:**\n\n"
+                    "**Banco:** BBVA Bancomer\n"
+                    "**Cuenta:** 1514123852\n"
+                    "**Cuenta CLABE:** 012180015141238524\n"
+                    "**Beneficiario:** Javier Gonzalez Regalado\n"
+                    "**Enviar Comprobante:** 5574277297"
+                )
+                cambio_txt = "Transferencia (Confirmar comprobante)"               
+               
 
             st.markdown("### 📋 Resumen Detallado de tu Cuenta")
             with st.container(border=True):
