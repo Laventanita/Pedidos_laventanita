@@ -543,7 +543,7 @@ with tab_cliente:
                     "**Cuenta:** 1514123852\n"
                     "**Cuenta CLABE:** 012180015141238524\n"
                     "**Beneficiario:** Javier Gonzalez Regalado\n"
-                    "**Enviar Comprobante:** 5574277297"
+                    "**Enviar Comprobante:** 5574977297"
                 )
                 cambio_txt = "Transferencia (Confirmar comprobante)"               
                
