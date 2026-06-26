@@ -104,7 +104,7 @@ MENU = {
         "Taco de Pastor": 28.0,
         "Taco de Suadero": 28.0,
         "Taco de Enchilada": 28.0,
-        "Taco de Bisteck": 28.0,
+        "Taco de Bisteck taquero": 28.0,
         "Taco de Chuleta": 28.0,
         "Taco Campechano": 28.0
     },
@@ -360,6 +360,8 @@ with tab_cliente:
                         col_info, col_controles = st.columns([2, 2])
                         agregado_texto = ""
                         precio_final_prod = precio
+                        
+                    st.subheader(prod)
                         
                         with col_info:
                             if "Chilaquiles" in prod:
