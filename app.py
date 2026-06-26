@@ -109,18 +109,19 @@ MENU = {
         "Taco Campechano": 28.0
     },
     "🫓 Quesadillas": {
-        "Quesadilla de Queso": 25.0,
-        "Quesadilla de Suadero": 28.0,
-        "Quesadilla de Tinga de pollo": 25.0,
-        "Quesadilla de Chicharrón": 25.0,
-        "Quesadilla de Champiñón": 25.0,
-        "Quesadilla de Mollejas": 25.0,
-        "Quesadilla de Pancita": 25.0
+        "Quesadilla de Queso": 28.0,
+        "Quesadilla de Suadero": 30.0,
+        "Quesadilla de Tinga de pollo": 28.0,
+        "Quesadilla de Chicharrón": 28.0,
+        "Quesadilla de Champiñón": 28.0,
+        "Quesadilla de Mollejas": 28.0,
+        "Quesadilla de Pancita": 28.0
     },
     "✨ Especialidades Mixi": {
         "Gordita": 30.0,
         "Pambazo de Papa con Longaniza": 30.0,
-        "Pambazo Especial (Otro ingrediente)": 35.0
+        "Pambazo Especial (Otro ingrediente)": 35.0,
+        "Huarache Especial": 40.0
     },
     "🥤 Licuados": {
         "Licuado de Fresa": 35.0, 
