@@ -361,9 +361,9 @@ with tab_cliente:
                         agregado_texto = ""
                         precio_final_prod = precio
                         
-                    st.subheader(prod)
+                        st.subheader(prod)
                         
-                        with col_info:
+                            with col_info:
                             if "Chilaquiles" in prod:
                                 salsa_elegida = st.selectbox("Salsa:", ["Verdes", "Rojos"], key=f"mod_{prod}")
                                 agregado_texto = f" ({salsa_elegida})"
