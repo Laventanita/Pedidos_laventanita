@@ -363,7 +363,7 @@ with tab_cliente:
                         
                                                
                         with col_info:
-                             st.subheader(prod)   
+                            st.subheader(prod)   
                     
                             if "Chilaquiles" in prod:
                                 salsa_elegida = st.selectbox("Salsa:", ["Verdes", "Rojos"], key=f"mod_{prod}")
