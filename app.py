@@ -381,21 +381,25 @@ with tab_cliente:
                                     precio_final_prod = 50.0
                                 agregado_texto = f" [{tamanio_fruta} - Con chantilly, miel, granola, fresa y plátano]"
 
-                            elif "Taco de" in prod and prod != "Taco de Chuleta":
-                                con_q = st.checkbox("¿Con Quesillo?", key=f"mod_{prod}")
-                                guarnicion = st.selectbox("Acompañado con:", ["Con papas", "Con nopales", "Papas y Nopales", "Sin guarnición"], key=f"guar_{prod}")
+                            # Lógica unificada para los tacos
+                                if "Taco de" in prod or "Taco Campechano" in prod:
+                            # 1. Definir el precio base según el tipo de producto
+                                if prod in ["Taco de Suadero", "Taco de Chuleta", "Taco de Bisteck de Res"]:
+                                   precio_base = 30.0
+                                else:
+                                   precio_base = 28.0
+    
+                                # 2. Configurar los inputs
+                                   con_q = st.checkbox("¿Con Quesillo?", key=f"mod_{prod}")
+                                   guarnicion = st.selectbox("Acompañado con:", ["Con papas", "Con nopales", "Papas y Nopales", "Sin guarnición"])
+    
+                                # 3. Calcular precio final y texto
+                                   precio_final_prod = precio_base
                                 if con_q:
-                                    precio_final_prod = 35.0
-                                    agregado_texto += " (Con Quesillo)"
-                                agregado_texto += f" [{guarnicion}]"
-                                    
-                            elif "Taco Campechano" in prod:
-                                con_q = st.checkbox("¿Con Quesillo?", key=f"mod_{prod}")
-                                guarnicion = st.selectbox("Acompañado con:", ["Con papas", "Con nopales", "Papas y Nopales", "Sin guarnición"], key=f"guar_{prod}")
-                                if con_q:
-                                    precio_final_prod = 33.0
-                                    agregado_texto += " (Con Quesillo)"
-                                agregado_texto += f" [{guarnicion}]"
+                                   precio_final_prod += 5.0
+                                   agregado_texto += " (Con Quesillo)"
+    
+                                   agregado_texto += f" [{guarnicion}]"
 
                             elif "Quesadilla" in prod or "Gordita" in prod:
                                 con_q = st.checkbox("¿Con Quesillo?", key=f"mod_{prod}")
