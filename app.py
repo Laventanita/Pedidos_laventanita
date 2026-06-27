@@ -380,10 +380,8 @@ with tab_cliente:
                                 if "Grande" in tamanio_fruta:
                                     precio_final_prod = 50.0
                                 agregado_texto = f" [{tamanio_fruta} - Con chantilly, miel, granola, fresa y plátano]"
-                                # ... código anterior ...
-                                # Inicializa antes de cualquier bloque if donde se usará
-                                con_q = False
-                                # Lógica unificada para los tacos
+                               
+                                                                # Lógica unificada para los tacos
                                 if "Taco de" in prod or "Taco Campechano" in prod:
                                     # 1. Definir el precio base según el tipo de producto
                                     if prod in ["Taco de Suadero", "Taco de Chuleta", "Taco de Bisteck de Res"]:
