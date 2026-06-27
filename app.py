@@ -385,7 +385,7 @@ with tab_cliente:
                                 con_q = st.checkbox("¿Con Quesillo? (+$5.00)", key=f"mod_{prod}")
                                 guarnicion = st.selectbox("Acompañado con:", ["Con papas", "Con nopales", "Papas y Nopales", "Sin guarnición"], key=f"guar_{prod}")
                                 if con_q:
-                                    precio_final_prod = 35.0
+                                    precio_final_prod = 33.0
                                     agregado_texto += " (Con Quesillo)"
                                 agregado_texto += f" [{guarnicion}]"
                                     
