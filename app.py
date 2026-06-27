@@ -398,7 +398,7 @@ with tab_cliente:
                                               
                                        # 3. Calcular precio final y texto
                                        precio_final_prod = precio_base
-                                if con_q:
+                                    if con_q:
                                        precio_final_prod += 5.0
                                        agregado_texto += " (Con Quesillo)"
     
