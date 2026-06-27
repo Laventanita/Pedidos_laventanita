@@ -393,8 +393,8 @@ with tab_cliente:
                                     if prod in ["Taco de Suadero", "Taco de Chuleta", "Taco de Bisteck de Res"]:
                                        precio_base = 30.0
                                      
-                                 con_q = st.checkbox("¿Con Quesillo?", key=f"mod_{prod}")
-                                 guarnicion = st.selectbox("Acompañado con:", ["Con papas", "Con nopales", "Papas y Nopales", "Sin guarnición"])
+                                con_q = st.checkbox("¿Con Quesillo?", key=f"mod_{prod}")
+                                guarnicion = st.selectbox("Acompañado con:", ["Con papas", "Con nopales", "Papas y Nopales", "Sin guarnición"])
                                               
                                        # 3. Calcular precio final y texto
                                        precio_final_prod = precio_base
