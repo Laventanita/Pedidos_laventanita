@@ -380,7 +380,12 @@ with tab_cliente:
                                 if "Grande" in tamanio_fruta:
                                     precio_final_prod = 50.0
                                 agregado_texto = f" [{tamanio_fruta} - Con chantilly, miel, granola, fresa y plátano]"
-                               
+                               # --- INICIALIZACIÓN SEGURA ---
+                            # Definimos las variables con valores por defecto al inicio del bloque de productos
+                                con_q = False
+                                agregado_texto = ""
+                                guarnicion = ""
+                                precio_base = 0.0
                                                                 # Lógica unificada para los tacos
                                 if "Taco de" in prod or "Taco Campechano" in prod:
                                     # 1. Definir el precio base según el tipo de producto
