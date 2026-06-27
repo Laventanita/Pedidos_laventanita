@@ -102,11 +102,13 @@ MENU = {
     },
     "🌮 Los Tacos Mixi": {
         "Taco de Pastor": 28.0,
-        "Taco de Suadero": 28.0,
+        "Taco de Suadero": 30.0,
         "Taco de Enchilada": 28.0,
-        "Taco de Bisteck taquero": 28.0,
-        "Taco de Chuleta": 28.0,
-        "Taco Campechano": 28.0
+        "Taco de Bisteck de puerco": 28.0,
+        "Taco de Chuleta": 30.0,
+        "Taco Campechano": 28.0,
+        "Taco de Longaniza": 28.0,
+        "Taco de Bisteck de res": 30.0
     },
     "🫓 Quesadillas": {
         "Quesadilla de Queso": 28.0,
@@ -115,13 +117,17 @@ MENU = {
         "Quesadilla de Chicharrón": 28.0,
         "Quesadilla de Champiñón": 28.0,
         "Quesadilla de Mollejas": 28.0,
-        "Quesadilla de Pancita": 28.0
+        "Quesadilla de Pancita": 28.0,
+        "Quesadilla de Tinga de res": 28.0
     },
     "✨ Especialidades Mixi": {
-        "Gordita": 30.0,
+        "Gordita de Chicharrón": 30.0,
+        "Gordita de Tinga de pollo": 30.0,
         "Pambazo de Papa con Longaniza": 30.0,
-        "Pambazo Especial (Otro ingrediente)": 35.0,
-        "Huarache Especial": 40.0
+        "Pambazo de tinga de pollo": 30.0,
+        "Huarache sencillo": 30.0,
+        "Huarache con guisado": 35.0,
+        "Huarache con carne (pastor, bisteck, etc": 40.0
     },
     "🥤 Licuados": {
         "Licuado de Fresa": 35.0, 
