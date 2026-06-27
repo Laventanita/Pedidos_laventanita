@@ -389,17 +389,17 @@ with tab_cliente:
                                     else:
                                        precio_base = 28.0
     
-                                # 2. Configurar los inputs
+                                    # 2. Configurar los inputs
                                        con_q = st.checkbox("¿Con Quesillo?", key=f"mod_{prod}")
                                        guarnicion = st.selectbox("Acompañado con:", ["Con papas", "Con nopales", "Papas y Nopales", "Sin guarnición"])
     
-                                # 3. Calcular precio final y texto
-                                   precio_final_prod = precio_base
+                                    # 3. Calcular precio final y texto
+                                       precio_final_prod = precio_base
                                 if con_q:
-                                   precio_final_prod += 5.0
-                                   agregado_texto += " (Con Quesillo)"
+                                       precio_final_prod += 5.0
+                                       agregado_texto += " (Con Quesillo)"
     
-                                   agregado_texto += f" [{guarnicion}]"
+                                       agregado_texto += f" [{guarnicion}]"
 
                             elif "Quesadilla" in prod or "Gordita" in prod:
                                 con_q = st.checkbox("¿Con Quesillo?", key=f"mod_{prod}")
