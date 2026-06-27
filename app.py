@@ -382,25 +382,23 @@ with tab_cliente:
                                 agregado_texto = f" [{tamanio_fruta} - Con chantilly, miel, granola, fresa y plátano]"
                                # --- INICIALIZACIÓN SEGURA ---
                             # Definimos las variables con valores por defecto al inicio del bloque de productos
-                                
+                                con_q = False
                                 agregado_texto = ""
                                 guarnicion = ""
                                 precio_base = 0.0
 
-                                con_q = False
-                                                                # Lógica unificada para los tacos
+                                       # Lógica unificada para los tacos
                                 if "Taco de" in prod or "Taco Campechano" in prod:
                                     # 1. Definir el precio base según el tipo de producto
                                     if prod in ["Taco de Suadero", "Taco de Chuleta", "Taco de Bisteck de Res"]:
                                        precio_base = 30.0
-                                    else:
-                                       precio_base = 28.0
-    
-                                    # 2. Configurar los inputs
-                                       con_q = st.checkbox("¿Con Quesillo?", key=f"mod_{prod}")
-                                       guarnicion = st.selectbox("Acompañado con:", ["Con papas", "Con nopales", "Papas y Nopales", "Sin guarnición"])
-    
-                                    # 3. Calcular precio final y texto
+                                     else:
+                                        precio_base = 28.0
+
+                                        con_q = st.checkbox("¿Con Quesillo?", key=f"mod_{prod}")
+                                        guarnicion = st.selectbox("Acompañado con:", ["Con papas", "Con nopales", "Papas y Nopales", "Sin guarnición"])
+                                              
+                                       # 3. Calcular precio final y texto
                                        precio_final_prod = precio_base
                                 if con_q:
                                        precio_final_prod += 5.0
