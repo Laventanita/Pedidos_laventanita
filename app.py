@@ -392,9 +392,7 @@ with tab_cliente:
                                     # 1. Definir el precio base según el tipo de producto
                                     if prod in ["Taco de Suadero", "Taco de Chuleta", "Taco de Bisteck de Res"]:
                                        precio_base = 30.0
-                                     else:
-                                        precio_base = 28.0
-
+                                     
                                         con_q = st.checkbox("¿Con Quesillo?", key=f"mod_{prod}")
                                         guarnicion = st.selectbox("Acompañado con:", ["Con papas", "Con nopales", "Papas y Nopales", "Sin guarnición"])
                                               
