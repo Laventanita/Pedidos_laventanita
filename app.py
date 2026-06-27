@@ -382,15 +382,15 @@ with tab_cliente:
                                 agregado_texto = f" [{tamanio_fruta} - Con chantilly, miel, granola, fresa y plátano]"
 
                             elif "Taco de" in prod and prod != "Taco de Chuleta":
-                                con_q = st.checkbox("¿Con Quesillo? (+$5.00)", key=f"mod_{prod}")
+                                con_q = st.checkbox("¿Con Quesillo?, key=f"mod_{prod}")
                                 guarnicion = st.selectbox("Acompañado con:", ["Con papas", "Con nopales", "Papas y Nopales", "Sin guarnición"], key=f"guar_{prod}")
                                 if con_q:
-                                    precio_final_prod = 33.0
+                                    precio_final_prod = 35.0
                                     agregado_texto += " (Con Quesillo)"
                                 agregado_texto += f" [{guarnicion}]"
                                     
                             elif "Taco Campechano" in prod:
-                                con_q = st.checkbox("¿Con Quesillo? (+$5.00)", key=f"mod_{prod}")
+                                con_q = st.checkbox("¿Con Quesillo?", key=f"mod_{prod}")
                                 guarnicion = st.selectbox("Acompañado con:", ["Con papas", "Con nopales", "Papas y Nopales", "Sin guarnición"], key=f"guar_{prod}")
                                 if con_q:
                                     precio_final_prod = 33.0
@@ -400,7 +400,7 @@ with tab_cliente:
                             elif "Quesadilla" in prod or "Gordita" in prod:
                                 con_q = st.checkbox("¿Con Quesillo?", key=f"mod_{prod}")
                                 if con_q:
-                                    precio_final_prod = 35.0 if "Gordita" in prod else 31.0
+                                    precio_final_prod = 35.0 if "Gordita" in prod else 33.0
                                     agregado_texto = " (Con Quesillo)"
 
                             elif "Pambazo Especial" in prod:
