@@ -381,13 +381,13 @@ with tab_cliente:
                                     precio_final_prod = 50.0
                                 agregado_texto = f" [{tamanio_fruta} - Con chantilly, miel, granola, fresa y plátano]"
 
-                            # Lógica unificada para los tacos
+                                # Lógica unificada para los tacos
                                 if "Taco de" in prod or "Taco Campechano" in prod:
-                            # 1. Definir el precio base según el tipo de producto
-                                if prod in ["Taco de Suadero", "Taco de Chuleta", "Taco de Bisteck de Res"]:
-                                   precio_base = 30.0
-                                else:
-                                   precio_base = 28.0
+                                    # 1. Definir el precio base según el tipo de producto
+                                    if prod in ["Taco de Suadero", "Taco de Chuleta", "Taco de Bisteck de Res"]:
+                                       precio_base = 30.0
+                                    else:
+                                       precio_base = 28.0
     
                                 # 2. Configurar los inputs
                                    con_q = st.checkbox("¿Con Quesillo?", key=f"mod_{prod}")
