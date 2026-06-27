@@ -382,7 +382,7 @@ with tab_cliente:
                                 agregado_texto = f" [{tamanio_fruta} - Con chantilly, miel, granola, fresa y plátano]"
 
                             elif "Taco de" in prod and prod != "Taco de Chuleta":
-                                con_q = st.checkbox("¿Con Quesillo? key=f"mod_{prod}")
+                                con_q = st.checkbox("¿Con Quesillo?", key=f"mod_{prod}")
                                 guarnicion = st.selectbox("Acompañado con:", ["Con papas", "Con nopales", "Papas y Nopales", "Sin guarnición"], key=f"guar_{prod}")
                                 if con_q:
                                     precio_final_prod = 35.0
