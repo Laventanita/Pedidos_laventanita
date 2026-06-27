@@ -41,7 +41,7 @@ TOKEN = st.secrets["TELEGRAM_TOKEN"]
 CHAT_ID = st.secrets["TELEGRAM_CHAT_ID"]
 
 # --- CONTRASEÑA DEL ADMINISTRADOR ---
-PASSWORD_ADMIN = "admin123" 
+PASSWORD_ADMIN = "1984" 
 
 # --- CONFIGURACIÓN MAESTRA DE CÓDIGOS POSTALES ---
 MAPA_CODIGOS_POSTALES = {
@@ -127,7 +127,7 @@ MENU = {
         "Pambazo de tinga de pollo": 30.0,
         "Huarache sencillo": 30.0,
         "Huarache con guisado": 35.0,
-        "Huarache con carne (pastor, bisteck, etc": 40.0
+        "Huarache con carne (pastor, bisteck, etc.)": 40.0
     },
     "🥤 Licuados": {
         "Licuado de Fresa": 35.0, 
@@ -382,25 +382,25 @@ with tab_cliente:
                                 agregado_texto = f" [{tamanio_fruta} - Con chantilly, miel, granola, fresa y plátano]"
 
                             elif "Taco de" in prod and prod != "Taco de Chuleta":
-                                con_q = st.checkbox("¿Con Quesillo? (+$3.00)", key=f"mod_{prod}")
+                                con_q = st.checkbox("¿Con Quesillo? (+$5.00)", key=f"mod_{prod}")
                                 guarnicion = st.selectbox("Acompañado con:", ["Con papas", "Con nopales", "Papas y Nopales", "Sin guarnición"], key=f"guar_{prod}")
                                 if con_q:
-                                    precio_final_prod = 31.0
+                                    precio_final_prod = 35.0
                                     agregado_texto += " (Con Quesillo)"
                                 agregado_texto += f" [{guarnicion}]"
                                     
                             elif "Taco Campechano" in prod:
-                                con_q = st.checkbox("¿Con Quesillo? (+$3.00)", key=f"mod_{prod}")
+                                con_q = st.checkbox("¿Con Quesillo? (+$5.00)", key=f"mod_{prod}")
                                 guarnicion = st.selectbox("Acompañado con:", ["Con papas", "Con nopales", "Papas y Nopales", "Sin guarnición"], key=f"guar_{prod}")
                                 if con_q:
-                                    precio_final_prod = 31.0
+                                    precio_final_prod = 33.0
                                     agregado_texto += " (Con Quesillo)"
                                 agregado_texto += f" [{guarnicion}]"
 
                             elif "Quesadilla" in prod or "Gordita" in prod:
                                 con_q = st.checkbox("¿Con Quesillo?", key=f"mod_{prod}")
                                 if con_q:
-                                    precio_final_prod = 33.0 if "Gordita" in prod else 31.0
+                                    precio_final_prod = 35.0 if "Gordita" in prod else 31.0
                                     agregado_texto = " (Con Quesillo)"
 
                             elif "Pambazo Especial" in prod:
