@@ -47,8 +47,6 @@ st.markdown("---")
 def conectar_base_datos():
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        
-        # Mapeo directo de los secretos cargados en formato TOML
         prod_secrets = st.secrets["gspread"]
         
         info_claves = {
@@ -67,8 +65,7 @@ def conectar_base_datos():
         
         creds = Credentials.from_service_account_info(info_claves, scopes=scope)
         cliente = gspread.authorize(creds)
-        # Abre tu documento de Excel en Drive En la nube
-        sheet = cliente.open("La Ventanita").sheet1
+        sheet = cliente.open("Carniceria").sheet1
         return sheet
     except Exception as e:
         return None
@@ -80,7 +77,6 @@ if sheet is None:
     st.error("Error al conectar con la base de datos. Verifica la configuración de Secrets.")
     st.info("No hay productos disponibles por el momento o se está actualizando el inventario.")
 else:
-    # Leer los datos del inventario (omitimos la fila de títulos)
     data = sheet.get_all_records()
     
     st.write("### 🛒 Productos Disponibles:")
@@ -88,35 +84,32 @@ else:
     
     pedido = {}
     
-    # Recorrer productos del Excel dinámicamente
     for index, row in enumerate(data):
         producto = row.get("Producto", f"Producto {index+1}")
         precio = row.get("Precio", 0)
-        disponible = str(row.get("Disponible", "SI")).strip().upper()
+        
+        # Filtro directo por la palabra SI
+        disponible = str(row.get("Disponible", "NO")).strip().upper()
         
         if disponible == "SI":
             col1, col2, col3 = st.columns([2, 1.5, 1])
             
             with col1:
-                # Checkbox para seleccionar el producto
                 seleccionado = st.checkbox(f"{producto} ( ${precio:,.2f} / kg )", key=f"check_{index}")
             
             if seleccionado:
                 with col2:
-                    # Selectbox para decidir el tipo de medida
                     tipo_medida = st.selectbox("Pedir por:", ["Por Kilos (kg)", "Por Dinero ($)"], key=f"tipo_{index}")
                 with col3:
-                    # Entrada de texto para la cantidad o pesos
                     if tipo_medida == "Por Kilos (kg)":
                         cantidad = st.text_input("Cantidad:", value="1/2", key=f"cant_{index}")
                     else:
                         cantidad = st.text_input("¿Cuánto ($)?:", value="100", key=f"cant_{index}")
                 
-                pedido[producto] = {"tipo": tipo_medida, "valor": cantidad}
+                pedido[producto] = {"tipo": tipo_medida, "valor": quantity} if 'quantity' in locals() else {"tipo": tipo_medida, "valor": cantidad}
 
     st.markdown("---")
     
-    # Mostrar el resumen de compra si hay algo seleccionado
     if pedido:
         st.write("### 📝 Resumen de tu Compra:")
         texto_resumen = "<div class='resumen-box'>"
@@ -133,7 +126,6 @@ else:
         texto_resumen += "</div>"
         st.markdown(texto_resumen, unsafe_allow_html=True)
         
-        # Datos del cliente
         st.write("### 📋 Tus Datos:")
         nombre_cliente = st.text_input("Tu Nombre:", value="")
         notas = st.text_input("Notas adicionales / dirección (si es a domicilio):", value="")
@@ -143,9 +135,7 @@ else:
         if notas:
             mensaje_whatsapp += f"\n*Notas:* {notas}"
             
-        # Generar botón con enlace directo a WhatsApp
         texto_url = urllib.parse.quote(mensaje_whatsapp)
-        # Tu número de WhatsApp de la carnicería listo
         numero_telefono = "525521404116" 
         url_whatsapp = f"https://wa.me/{numero_telefono}?text={texto_url}"
         
