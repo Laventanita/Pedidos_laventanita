@@ -88,10 +88,14 @@ else:
         producto = row.get("Producto", f"Producto {index+1}")
         precio = row.get("Precio", 0)
         
-        # Filtro directo por la palabra SI
-        disponible = str(row.get("Disponible", "NO")).strip().upper()
+        # Filtro flexible para detectar SI, TRUE o Verdadero
+        disponible_val = row.get("Disponible", "NO")
+        if isinstance(disponible_val, bool):
+            disponible = "SI" if disponible_val else "NO"
+        else:
+            disponible = str(disponible_val).strip().upper()
         
-        if disponible == "SI":
+        if disponible in ["SI", "TRUE", "VERDADERO"]:
             col1, col2, col3 = st.columns([2, 1.5, 1])
             
             with col1:
@@ -106,7 +110,7 @@ else:
                     else:
                         cantidad = st.text_input("¿Cuánto ($)?:", value="100", key=f"cant_{index}")
                 
-                pedido[producto] = {"tipo": tipo_medida, "valor": quantity} if 'quantity' in locals() else {"tipo": tipo_medida, "valor": cantidad}
+                pedido[producto] = {"tipo": tipo_medida, "valor": cantidad}
 
     st.markdown("---")
     
@@ -121,7 +125,7 @@ else:
                 mensaje_whatsapp += f"• *{prod}:* {info['valor']} kg\n"
             else:
                 texto_resumen += f"• **{prod}:** ${info['valor']} pesos<br>"
-                mensaje_whatsapp += f"• *{prod}:* ${info['valor']} pesos\n"
+                mensaje_whatsapp += f"• *{prod}:* {info['valor']} pesos\n"
                 
         texto_resumen += "</div>"
         st.markdown(texto_resumen, unsafe_allow_html=True)
