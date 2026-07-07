@@ -99,6 +99,20 @@ else:
             # Diccionario para almacenar lo que seleccione el usuario
             pedido_usuario = {}
             
+            # Lista de opciones cómodas para seleccionar por kilo
+            opciones_kilos = [
+                "1/4 kg (250g)", 
+                "1/2 kg (500g)", 
+                "3/4 kg (750g)", 
+                "1 kg", 
+                "1.5 kg", 
+                "2 kg", 
+                "2.5 kg", 
+                "3 kg", 
+                "4 kg", 
+                "5 kg"
+            ]
+            
             # Mostrar cada producto con sus opciones de pedido
             for prod in productos_disponibles:
                 nombre = prod.get("Producto", "Sin nombre")
@@ -122,15 +136,14 @@ else:
                         )
                     with col2:
                         if tipo_pedido == "Por Kilos":
-                            cantidad = st.number_input(
-                                "Cantidad (Kilos):", 
-                                min_value=0.1, 
-                                max_value=20.0, 
-                                value=1.0, 
-                                step=0.05, 
-                                key=f"cant_{nombre}"
+                            # Desplegable en lugar de cuadro numérico
+                            medida_kilos = st.selectbox(
+                                "Selecciona el peso:",
+                                opciones_kilos,
+                                index=3,  # Selecciona "1 kg" por defecto
+                                key=f"cant_kilos_{nombre}"
                             )
-                            pedido_usuario[nombre] = {"tipo": "Kilos", "cantidad": cantidad}
+                            pedido_usuario[nombre] = {"tipo": "Kilos", "cantidad": medida_kilos}
                         elif tipo_pedido == "Por Dinero ($)":
                             cantidad = st.number_input(
                                 "Monto ($ MXN):", 
@@ -138,7 +151,7 @@ else:
                                 max_value=5000, 
                                 value=100, 
                                 step=10, 
-                                key=f"cant_{nombre}"
+                                key=f"cant_dinero_{nombre}"
                             )
                             pedido_usuario[nombre] = {"tipo": "Dinero", "cantidad": cantidad}
                 st.markdown("<br>", unsafe_allow_html=True)
@@ -149,7 +162,7 @@ else:
             st.write("### 👤 Datos de Entrega")
             nombre_cliente = st.text_input("Nombre completo:")
             direccion_cliente = st.text_area("Dirección completa (Calle, Número, Colonia):")
-            notas_adicionales = st.text_input("Notas del pedido (Ej: término de carne, etc.):")
+            notas_adicionales = st.text_input("Notas del pedido (Ej: término de carne, empaque, etc.):")
             
             st.markdown("<br>", unsafe_allow_html=True)
             
@@ -159,7 +172,7 @@ else:
                 if not nombre_cliente.strip() or not direccion_cliente.strip():
                     st.warning("Por favor, ingresa tu nombre y dirección antes de enviar.")
                 elif not pedido_usuario:
-                    st.warning("No has seleccionado una cantidad válida para ningún producto.")
+                    st.warning("No has seleccionado ningún producto para tu pedido.")
                 else:
                     # Construir el mensaje de texto para WhatsApp
                     texto_mensaje = f"🥩 *NUEVO PEDIDO - CARNICERÍA LA VENTANITA*\n\n"
@@ -172,7 +185,7 @@ else:
                     
                     for prod_nombre, detalle in pedido_usuario.items():
                         if detalle["tipo"] == "Kilos":
-                            texto_mensaje += f"• {prod_nombre}: *{detalle['cantidad']} Kilos*\n"
+                            texto_mensaje += f"• {prod_nombre}: *{detalle['cantidad']}*\n"
                         elif detalle["tipo"] == "Dinero":
                             texto_mensaje += f"• {prod_nombre}: *${detalle['cantidad']} pesos*\n"
                     
@@ -181,9 +194,8 @@ else:
                     # Codificar el texto para la URL de WhatsApp
                     mensaje_codificado = urllib.parse.quote(texto_mensaje)
                     
-                    # Tu número de teléfono para recibir los pedidos (ejemplo: 52 + 10 dígitos)
-                    # REEMPLAZA ESTE NÚMERO POR EL TUYO:
-                    telefono_recibe = "5574977297" 
+                    # REEMPLAZA ESTE NÚMERO POR EL TUYO (código de país 52 + 10 dígitos)
+                    telefono_recibe = "525574977297" 
                     
                     url_whatsapp = f"https://api.whatsapp.com/send?phone={telefono_recibe}&text={mensaje_codificado}"
                     
