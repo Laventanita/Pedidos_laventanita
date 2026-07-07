@@ -68,11 +68,14 @@ else:
         # Leer todas las filas de la hoja de cálculo
         datos = sheet.get_all_records()
         
-        # Filtrar asegurando que detecte tanto el texto "TRUE" como el valor lógico True
+        # Filtrar los productos aceptando "SI", "TRUE" o el valor lógico True
         productos_disponibles = []
         for p in datos:
             val_disponible = p.get("Disponible", "")
-            if str(val_disponible).upper() == "TRUE" or val_disponible is True:
+            # Convertimos a texto y a mayúsculas para comparar fácilmente
+            texto_disponible = str(val_disponible).strip().upper()
+            
+            if texto_disponible in ["SI", "TRUE"] or val_disponible is True:
                 productos_disponibles.append(p)
         
         if not productos_disponibles:
