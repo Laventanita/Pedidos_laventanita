@@ -7,7 +7,7 @@ import urllib.parse
 st.set_page_config(page_title="Carnicería La Ventanita", page_icon="🥩", layout="centered")
 
 # Estilos CSS personalizados para modo oscuro elegante
-st.markdown("""
+st.markdown(""" <style> ... </style> """, unsafe_allow_html=True)
     <style>
     .reportview-container { background: #111216; }
     .stHeader { color: #FFFFFF; }
