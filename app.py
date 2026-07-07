@@ -1,139 +1,159 @@
 import streamlit as st
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 import urllib.parse
-import json
 
-# 1. Configuración de la página
-st.set_page_config(page_title="La Ventanita - Pedidos", page_icon="🥩", layout="centered")
+# Configuración de la página
+st.set_page_config(page_title="Carnicería La Ventanita", page_icon="🥩", layout="centered")
 
-hide_menu_style = """
-        <style>
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        .stCheckbox { margin-bottom: 0px; }
-        </style>
-        """
-st.markdown(hide_menu_style, unsafe_allow_html=True)
+# Estilos CSS personalizados para modo oscuro elegante
+st.markdown("""
+    <style>
+    .reportview-container { background: #111216; }
+    .stHeader { color: #FFFFFF; }
+    h1 { color: #FFFFFF; font-family: 'Arial'; font-weight: 700; }
+    h3 { color: #EEEEEE; }
+    .stCheckbox label { color: #FFFFFF !important; font-size: 18px !important; }
+    div.stButton > button:first-child {
+        background-color: #25D366;
+        color: white;
+        font-size: 20px;
+        font-weight: bold;
+        border-radius: 10px;
+        border: none;
+        padding: 0.5rem 2rem;
+        width: 100%;
+    }
+    div.stButton > button:first-child:hover {
+        background-color: #128C7E;
+        color: white;
+    }
+    .resumen-box {
+        background-color: #1E1E24;
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 5px solid #FF4B4B;
+        margin-bottom: 20px;
+    }
+    </style>
+""", unsafe_unsafe_html=True)
 
-# 2. Conexión a Google Sheets usando los Secrets seguros de Streamlit
-@st.cache_data(ttl=15)
-def cargar_datos():
-    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-    
-    # IMPORTANTE: Aquí lee directamente el JSON desde la configuración interna de Streamlit Cloud
-    creds_dict = json.loads(st.secrets["gspread"]["json_key"])
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-    
-    client = gspread.authorize(creds)
-    sheet = client.open('Carniceria').worksheet('Hoja 1')
-    return sheet.get_all_records()
-
-try:
-    data = cargar_datos()
-except Exception as e:
-    st.error("Error al conectar con la base de datos. Verifica la configuración de Secrets.")
-    data = []
-
-# 3. Encabezado
+# Encabezado de la app
 st.title("🥩 Carnicería La Ventanita")
 st.subheader("Haz tu pedido de forma fácil y rápida")
-st.write("---")
+st.markdown("---")
 
-if data:
-    st.markdown("### 🛒 Productos Disponibles:")
-    st.caption("Selecciona lo que necesites, elige cómo pedirlo (Kilos o Pesos) y pon la cantidad:")
+# Función para conectar a Google Sheets usando los Secrets de Streamlit
+def conectar_base_datos():
+    try:
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        
+        # Mapeo directo de los secretos cargados en formato TOML
+        prod_secrets = st.secrets["gspread"]
+        
+        info_claves = {
+            "type": prod_secrets["type"],
+            "project_id": prod_secrets["project_id"],
+            "private_key_id": prod_secrets["private_key_id"],
+            "private_key": prod_secrets["private_key"].replace('\\n', '\n'),
+            "client_email": prod_secrets["client_email"],
+            "client_id": prod_secrets["client_id"],
+            "auth_uri": prod_secrets["auth_uri"],
+            "token_uri": prod_secrets["token_uri"],
+            "auth_provider_x509_cert_url": prod_secrets["auth_provider_x509_cert_url"],
+            "client_x509_cert_url": prod_secrets["client_x509_cert_url"],
+            "universe_domain": prod_secrets["universe_domain"]
+        }
+        
+        creds = Credentials.from_service_account_info(info_claves, scopes=scope)
+        cliente = gspread.authorize(creds)
+        # Abre tu documento de Excel en Drive
+        sheet = cliente.open("La Ventanita").sheet1
+        return sheet
+    except Exception as e:
+        return None
+
+# Intentar conectar
+sheet = conectar_base_datos()
+
+if sheet is None:
+    st.error("Error al conectar con la base de datos. Verifica la configuración de Secrets.")
+    st.info("No hay productos disponibles por el momento o se está actualizando el inventario.")
+else:
+    # Leer los datos del inventario (omitimos la fila de títulos)
+    data = sheet.get_all_records()
     
-    pedido_activo = {}
+    st.write("### 🛒 Productos Disponibles:")
+    st.write("Selecciona lo que necesites, elige cómo pedirlo (Kilos o Pesos) y pon la cantidad:")
     
-    for row in data:
-        if str(row.get('Disponible', '')).upper() == 'TRUE':
-            producto = row.get('Producto', 'Producto sin nombre')
-            precio_raw = str(row.get('Precio') or row.get('precio') or row.get('PRECIO') or '')
+    pedido = {}
+    
+    # Recorrer productos del Excel dinámicamente
+    for index, row in enumerate(data):
+        producto = row.get("Producto", f"Producto {index+1}")
+        precio = row.get("Precio", 0)
+        disponible = str(row.get("Disponible", "SI")).strip().upper()
+        
+        if disponible == "SI":
+            col1, col2, col3 = st.columns([2, 1.5, 1])
             
-            # Limpiamos si viene con doble signo de pesos por error en el Excel
-            precio = precio_raw.replace('$$', '$').strip()
-            
-            # Formato de texto para el producto y precio
-            texto_producto = f"**{producto}**"
-            if precio:
-                formato_precio = precio if precio.startswith('$') else f"${precio}"
-                texto_producto += f"   *( {formato_precio} / kg )*"
-            
-            col_check, col_tipo, col_cant = st.columns([1.5, 1.2, 1.3])
-            
-            with col_check:
-                seleccionado = st.checkbox(texto_producto, key=f"check_{producto}")
+            with col1:
+                # Checkbox para seleccionar el producto
+                seleccionado = st.checkbox(f"{producto} ( ${precio:,.2f} / kg )", key=f"check_{index}")
             
             if seleccionado:
-                with col_tipo:
-                    tipo_pedido = st.selectbox(
-                        "¿Cómo pides?",
-                        ["Por Kilos", "Por Dinero ($)"],
-                        key=f"tipo_{producto}",
-                        label_visibility="collapsed"
-                    )
-                
-                with col_cant:
-                    if tipo_pedido == "Por Kilos":
-                        cantidad = st.selectbox(
-                            "Kilos:",
-                            ["1/2 kg", "1 kg", "1.5 kg", "2 kg", "2.5 kg", "3 kg", "Otro"],
-                            key=f"cant_kg_{producto}",
-                            label_visibility="collapsed"
-                        )
-                        pedido_activo[producto] = f"{cantidad}"
+                with col2:
+                    # Selectbox para decidir el tipo de medida
+                    tipo_medida = st.selectbox("Pedir por:", ["Por Kilos (kg)", "Por Dinero ($)"], key=f"tipo_{index}")
+                with col3:
+                    # Entrada de texto para la cantidad o pesos
+                    if tipo_medida == "Por Kilos (kg)":
+                        cantidad = st.text_input("Cantidad:", value="1/2", key=f"cant_{index}")
                     else:
-                        pesos = st.text_input(
-                            "Pesos:",
-                            placeholder="$ ¿Cuánto?",
-                            key=f"cant_mxn_{producto}",
-                            label_visibility="collapsed"
-                        )
-                        if pesos:
-                            formato_pesos = pesos if pesos.startswith('$') else f"${pesos}"
-                            pedido_activo[producto] = f"{formato_pesos} pesos"
-                        else:
-                            pedido_activo[producto] = "Cantidad por definir"
-            
-            st.write("") 
-            
-    st.write("---")
-    
-    # Sección de Resumen en Tiempo Real
-    if pedido_activo:
-        st.markdown("### 📝 Resumen de tu Compra:")
-        with st.container(border=True):
-            for prod, cant in pedido_activo.items():
-                st.write(f"• **{prod}**: {cant}")
-        st.write("---")
-    
-    # 4. Datos del Cliente
-    st.markdown("### 📋 Tus Datos:")
-    nombre = st.text_input("Tu Nombre:", placeholder="Ej. Aurora")
-    notas = st.text_area("Notas adicionales:", placeholder="Ej. El bisteck bien delgadito, el pastor con piña...")
-    
-    if st.button("Enviar Pedido por WhatsApp 📲", type="primary"):
-        if not nombre:
-            st.warning("Por favor, ingresa tu nombre antes de enviar.")
-        elif not pedido_activo:
-            st.warning("Selecciona al menos un producto.")
-        else:
-            productos_texto = ""
-            for prod, cant in pedido_activo.items():
-                productos_texto += f"- {prod}: *{cant}*\n"
+                        cantidad = st.text_input("¿Cuánto ($)?:", value="100", key=f"cant_{index}")
                 
-            mensaje_wa = f"¡Hola! Quiero hacer un pedido en La Ventanita:\n\n👤 *Cliente:* {nombre}\n\n🥩 *Pedido:*\n{productos_texto}"
+                pedido[producto] = {"tipo": tipo_medida, "valor": cantidad}
+
+    st.markdown("---")
+    
+    # Mostrar el resumen de compra si hay algo seleccionado
+    if pedido:
+        st.write("### 📝 Resumen de tu Compra:")
+        texto_resumen = "<div class='resumen-box'>"
+        mensaje_whatsapp = "*¡Hola! Quiero hacer un pedido en La Ventanita:* \n\n"
+        
+        for prod, info in pedido.items():
+            if "Kilos" in info["tipo"]:
+                texto_resumen += f"• **{prod}:** {info['valor']} kg<br>"
+                mensaje_whatsapp += f"• *{prod}:* {info['valor']} kg\n"
+            else:
+                texto_resumen += f"• **{prod}:** ${info['valor']} pesos<br>"
+                mensaje_whatsapp += f"• *{prod}:* ${info['valor']} pesos\n"
+                
+        texto_resumen += "</div>"
+        st.markdown(texto_resumen, unsafe_allow_html=True)
+        
+        # Datos del cliente
+        st.write("### 📋 Tus Datos:")
+        nombre_cliente = st.text_input("Tu Nombre:", value="")
+        notas = st.text_input("Notas adicionales / dirección (si es a domicilio):", value="")
+        
+        if nombre_cliente:
+            mensaje_whatsapp += f"\n*Cliente:* {nombre_cliente}"
+        if "%20" or notas:
+            mensaje_whatsapp += f"\n*Notas:* {notas}"
             
-            if notes := notas.strip():
-                mensaje_wa += f"\n📝 *Notas:* {notes}"
-            
-            mi_numero = "525574977297" 
-            
-            mensaje_codificado = urllib.parse.quote(mensaje_wa)
-            url_whatsapp = f"https://wa.me/{mi_numero}?text={mensaje_codificado}"
-            
-            st.success("¡Pedido listo!")
-            st.markdown(f'<a href="{url_whatsapp}" target="_blank" style="display: inline-block; padding: 10px 20px; background-color: #25D366; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">📲 Enviar por WhatsApp</a>', unsafe_allow_html=True)
-else:
-    st.info("No hay productos disponibles por el momento o se está actualizando el inventario.")
+        # Generar botón con enlace directo a WhatsApp
+        texto_url = urllib.parse.quote(mensaje_whatsapp)
+        # Tu número de WhatsApp de la carnicería listo
+        numero_telefono = "525521404116" 
+        url_whatsapp = f"https://wa.me/{numero_telefono}?text={texto_url}"
+        
+        st.write("")
+        if st.button("🚀 Enviar Pedido por WhatsApp"):
+            if not nombre_cliente:
+                st.warning("Por favor ingresa tu nombre antes de enviar el pedido.")
+            else:
+                st.markdown(f"""
+                    <meta http-equiv="refresh" content="0; url={url_whatsapp}">
+                """, unsafe_allow_html=True)
