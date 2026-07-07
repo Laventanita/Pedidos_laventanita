@@ -36,7 +36,7 @@ st.markdown("""
         margin-bottom: 20px;
     }
     </style>
-""", unsafe_unsafe_html=True)
+""", unsafe_allow_html=True)
 
 # Encabezado de la app
 st.title("🥩 Carnicería La Ventanita")
@@ -67,7 +67,7 @@ def conectar_base_datos():
         
         creds = Credentials.from_service_account_info(info_claves, scopes=scope)
         cliente = gspread.authorize(creds)
-        # Abre tu documento de Excel en Drive
+        # Abre tu documento de Excel en Drive En la nube
         sheet = cliente.open("La Ventanita").sheet1
         return sheet
     except Exception as e:
@@ -140,7 +140,7 @@ else:
         
         if nombre_cliente:
             mensaje_whatsapp += f"\n*Cliente:* {nombre_cliente}"
-        if "%20" or notas:
+        if notas:
             mensaje_whatsapp += f"\n*Notas:* {notas}"
             
         # Generar botón con enlace directo a WhatsApp
