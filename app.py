@@ -2,9 +2,10 @@ import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import urllib.parse
+import json
 
-# 1. Configuraci贸n de la p谩gina
-st.set_page_config(page_title="La Ventanita - Pedidos", page_icon="馃ォ", layout="centered")
+# 1. Configuración de la página
+st.set_page_config(page_title="La Ventanita - Pedidos", page_icon="🥩", layout="centered")
 
 hide_menu_style = """
         <style>
@@ -15,11 +16,15 @@ hide_menu_style = """
         """
 st.markdown(hide_menu_style, unsafe_allow_html=True)
 
-# 2. Conexi贸n a Google Sheets
+# 2. Conexión a Google Sheets usando los Secrets seguros de Streamlit
 @st.cache_data(ttl=15)
 def cargar_datos():
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-    creds = ServiceAccountCredentials.from_json_keyfile_name('credenciales.json', scope)
+    
+    # IMPORTANTE: Aquí lee directamente el JSON desde la configuración interna de Streamlit Cloud
+    creds_dict = json.loads(st.secrets["gspread"]["json_key"])
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    
     client = gspread.authorize(creds)
     sheet = client.open('Carniceria').worksheet('Hoja 1')
     return sheet.get_all_records()
@@ -27,17 +32,17 @@ def cargar_datos():
 try:
     data = cargar_datos()
 except Exception as e:
-    st.error("Error al conectar con la base de datos. Verifica tus credenciales.")
+    st.error("Error al conectar con la base de datos. Verifica la configuración de Secrets.")
     data = []
 
 # 3. Encabezado
-st.title("馃ォ Carnicer铆a La Ventanita")
-st.subheader("Haz tu pedido de forma f谩cil y r谩pida")
+st.title("🥩 Carnicería La Ventanita")
+st.subheader("Haz tu pedido de forma fácil y rápida")
 st.write("---")
 
 if data:
-    st.markdown("### 馃洅 Productos Disponibles:")
-    st.caption("Selecciona lo que necesites, elige c贸mo pedirlo (Kilos o Pesos) y pon la cantidad:")
+    st.markdown("### 🛒 Productos Disponibles:")
+    st.caption("Selecciona lo que necesites, elige cómo pedirlo (Kilos o Pesos) y pon la cantidad:")
     
     pedido_activo = {}
     
@@ -52,7 +57,6 @@ if data:
             # Formato de texto para el producto y precio
             texto_producto = f"**{producto}**"
             if precio:
-                # Si el precio no trae signo de pesos, se lo ponemos
                 formato_precio = precio if precio.startswith('$') else f"${precio}"
                 texto_producto += f"   *( {formato_precio} / kg )*"
             
@@ -64,7 +68,7 @@ if data:
             if seleccionado:
                 with col_tipo:
                     tipo_pedido = st.selectbox(
-                        "驴C贸mo pides?",
+                        "¿Cómo pides?",
                         ["Por Kilos", "Por Dinero ($)"],
                         key=f"tipo_{producto}",
                         label_visibility="collapsed"
@@ -82,7 +86,7 @@ if data:
                     else:
                         pesos = st.text_input(
                             "Pesos:",
-                            placeholder="$ 驴Cu谩nto?",
+                            placeholder="$ ¿Cuánto?",
                             key=f"cant_mxn_{producto}",
                             label_visibility="collapsed"
                         )
@@ -96,20 +100,20 @@ if data:
             
     st.write("---")
     
-    # NUEVO: Secci贸n de Resumen en Tiempo Real
+    # Sección de Resumen en Tiempo Real
     if pedido_activo:
-        st.markdown("### 馃摑 Resumen de tu Compra:")
-        with st.container(border=True): # Hace un recuadro limpio para el resumen
+        st.markdown("### 📝 Resumen de tu Compra:")
+        with st.container(border=True):
             for prod, cant in pedido_activo.items():
-                st.write(f"鈥?**{prod}**: {cant}")
+                st.write(f"• **{prod}**: {cant}")
         st.write("---")
     
     # 4. Datos del Cliente
-    st.markdown("### 馃搵 Tus Datos:")
+    st.markdown("### 📋 Tus Datos:")
     nombre = st.text_input("Tu Nombre:", placeholder="Ej. Aurora")
-    notas = st.text_area("Notas adicionales:", placeholder="Ej. El bisteck bien delgadito, el pastor con pi帽a...")
+    notas = st.text_area("Notas adicionales:", placeholder="Ej. El bisteck bien delgadito, el pastor con piña...")
     
-    if st.button("Enviar Pedido por WhatsApp 馃摬", type="primary"):
+    if st.button("Enviar Pedido por WhatsApp 📲", type="primary"):
         if not nombre:
             st.warning("Por favor, ingresa tu nombre antes de enviar.")
         elif not pedido_activo:
@@ -119,17 +123,17 @@ if data:
             for prod, cant in pedido_activo.items():
                 productos_texto += f"- {prod}: *{cant}*\n"
                 
-            mensaje_wa = f"隆Hola! Quiero hacer un pedido en La Ventanita:\n\n馃懁 *Cliente:* {nombre}\n\n馃ォ *Pedido:*\n{productos_texto}"
+            mensaje_wa = f"¡Hola! Quiero hacer un pedido en La Ventanita:\n\n👤 *Cliente:* {nombre}\n\n🥩 *Pedido:*\n{productos_texto}"
             
             if notes := notas.strip():
-                mensaje_wa += f"\n馃摑 *Notas:* {notes}"
+                mensaje_wa += f"\n📝 *Notas:* {notes}"
             
             mi_numero = "525574977297" 
             
             mensaje_codificado = urllib.parse.quote(mensaje_wa)
             url_whatsapp = f"https://wa.me/{mi_numero}?text={mensaje_codificado}"
             
-            st.success("隆Pedido listo!")
-            st.markdown(f'<a href="{url_whatsapp}" target="_blank" style="display: inline-block; padding: 10px 20px; background-color: #25D366; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">馃摬 Enviar por WhatsApp</a>', unsafe_allow_html=True)
+            st.success("¡Pedido listo!")
+            st.markdown(f'<a href="{url_whatsapp}" target="_blank" style="display: inline-block; padding: 10px 20px; background-color: #25D366; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">📲 Enviar por WhatsApp</a>', unsafe_allow_html=True)
 else:
-    st.info("No hay productos disponibles por el momento o se est谩 actualizando el inventario.")
+    st.info("No hay productos disponibles por el momento o se está actualizando el inventario.")
