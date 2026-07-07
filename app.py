@@ -5,7 +5,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 # Configuración de la página
 st.set_page_config(page_title="Carnicería La Ventanita", page_icon="🥩", layout="centered")
 
-# Inyección de diseño CSS limpio y sin espacios de más al margen
+# Inyección de diseño CSS limpio
 st.markdown("""
 <style>
 .stApp {
@@ -35,7 +35,6 @@ def conectar_base_datos():
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         
-        # Se extraen las credenciales directamente del formato TOML de Streamlit
         creds_dict = {
             "type": st.secrets["gspread"]["type"],
             "project_id": st.secrets["gspread"]["project_id"],
@@ -69,8 +68,12 @@ else:
         # Leer todas las filas de la hoja de cálculo
         datos = sheet.get_all_records()
         
-        # Filtrar solo los productos que tengan Disponible = TRUE
-        productos_disponibles = [p for p in datos if str(p.get("Disponible", "")).upper() == "TRUE"]
+        # Filtrar asegurando que detecte tanto el texto "TRUE" como el valor lógico True
+        productos_disponibles = []
+        for p in datos:
+            val_disponible = p.get("Disponible", "")
+            if str(val_disponible).upper() == "TRUE" or val_disponible is True:
+                productos_disponibles.append(p)
         
         if not productos_disponibles:
             st.info("No hay productos disponibles por el momento o se está actualizando el inventario.")
