@@ -282,9 +282,8 @@ else:
                 if st.session_state.get("mostrar_boton_wa", False):
                     st.success("¡Pedido enviado a Telegram con éxito!")
                     
-                    # Intent nativo de Android: Abre el esquema de WhatsApp pasándole la URI de envío directo
-                    # Esto no pasa por la web intermedia; salta directo al gestor de intents del cel
-                    url_intent_android = f"intent://send?phone={telefono_recibe}&text={mensaje_codificado}#Intent;scheme=whatsapp;package=com.whatsapp;end"
+                    # Reemplaza la línea del intent anterior por esta versión limpia y universal:
+                    url_intent_android = f"intent://send?phone={telefono_recibe}&text={mensaje_codificado}#Intent;scheme=whatsapp;end"
                     
                     boton_html = f"""
                     <a href="{url_intent_android}" style="
