@@ -278,16 +278,16 @@ else:
                         st.session_state[estado_key] = True
                     st.session_state["mostrar_boton_wa"] = True
                 
-                # Paso 2: Si ya se confirmó, se muestra el botón HTML con compatibilidad total
+                # Paso 2: Si ya se confirmó, se muestra el botón con el INTENT nativo de Android
                 if st.session_state.get("mostrar_boton_wa", False):
                     st.success("¡Pedido enviado a Telegram con éxito!")
                     
-                    # URL unificada con diagonal final y parámetros explícitos para WhatsApp Normal y Business
-                    url_whatsapp_universal = f"https://api.whatsapp.com/send/?phone={telefono_recibe}&text={mensaje_codificado}&type=phone_number&app_absent=0"
+                    # Intent nativo de Android: Abre el esquema de WhatsApp pasándole la URI de envío directo
+                    # Esto no pasa por la web intermedia; salta directo al gestor de intents del cel
+                    url_intent_android = f"intent://send?phone={telefono_recibe}&text={mensaje_codificado}#Intent;scheme=whatsapp;package=com.whatsapp;end"
                     
-                    # El botón HTML nativo que el navegador procesará sin trabarse
                     boton_html = f"""
-                    <a href="{url_whatsapp_universal}" target="_blank" style="
+                    <a href="{url_intent_android}" style="
                         display: block;
                         width: 100%;
                         background-color: #25D366;
