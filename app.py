@@ -23,6 +23,14 @@ h1, h2, h3 {
     margin-bottom: 10px;
     border: 1px solid #30363d;
 }
+.resumen-box {
+    background-color: #1f2937;
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #4b5563;
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
 div.stButton > button:first-child {
     background-color: #25D366;
     color: white;
@@ -99,30 +107,36 @@ else:
             # Diccionario para almacenar lo que seleccione el usuario
             pedido_usuario = {}
             
-            # Lista de opciones cómodas para seleccionar por kilo
-            opciones_kilos = [
-                "1/4 kg (250g)", 
-                "1/2 kg (500g)", 
-                "3/4 kg (750g)", 
-                "1 kg", 
-                "1.5 kg", 
-                "2 kg", 
-                "2.5 kg", 
-                "3 kg", 
-                "4 kg", 
-                "5 kg"
-            ]
+            # Opciones de kilos y sus valores numéricos correspondientes para calcular el precio
+            opciones_kilos = {
+                "1/4 kg (250g)": 0.25,
+                "1/2 kg (500g)": 0.50,
+                "3/4 kg (750g)": 0.75,
+                "1 kg": 1.0,
+                "1.5 kg": 1.5,
+                "2 kg": 2.0,
+                "2.5 kg": 2.5,
+                "3 kg": 3.0,
+                "4 kg": 4.0,
+                "5 kg": 5.0
+            }
             
             # Mostrar cada producto con sus opciones de pedido
             for prod in productos_disponibles:
                 nombre = prod.get("Producto", "Sin nombre")
-                precio = prod.get("Precio", 0)
+                
+                # Limpiar el precio quitando el signo '$' y comas si vienen desde Excel
+                precio_raw = str(prod.get("Precio", 0)).replace("$", "").replace(",", "").strip()
+                try:
+                    precio = float(precio_raw)
+                except ValueError:
+                    precio = 0.0
                 
                 with st.container():
                     st.markdown(f"""
                     <div class="producto-card">
                         <h4 style='margin:0; color:#ff4b4b;'>{nombre}</h4>
-                        <p style='margin:5px 0 5px 0; color:#8b949e;'>Precio: {precio}</p>
+                        <p style='margin:5px 0 5px 0; color:#8b949e;'>Precio por Kg: ${precio:,.2f}</p>
                     </div>
                     """, unsafe_allow_html=True)
                     
@@ -136,16 +150,18 @@ else:
                         )
                     with col2:
                         if tipo_pedido == "Por Kilos":
-                            # Desplegable en lugar de cuadro numérico
                             medida_kilos = st.selectbox(
                                 "Selecciona el peso:",
-                                opciones_kilos,
+                                list(opciones_kilos.keys()),
                                 index=3,  # Selecciona "1 kg" por defecto
                                 key=f"cant_kilos_{nombre}"
                             )
-                            pedido_usuario[nombre] = {"tipo": "Kilos", "cantidad": medida_kilos}
+                            factor = opciones_kilos[medida_kilos]
+                            costo_estimado = precio * factor
+                            pedido_usuario[nombre] = {"tipo": "Kilos", "texto_cant": medida_kilos, "subtotal": costo_estimado}
+                            
                         elif tipo_pedido == "Por Dinero ($)":
-                            cantidad = st.number_input(
+                            monto = st.number_input(
                                 "Monto ($ MXN):", 
                                 min_value=10, 
                                 max_value=5000, 
@@ -153,8 +169,29 @@ else:
                                 step=10, 
                                 key=f"cant_dinero_{nombre}"
                             )
-                            pedido_usuario[nombre] = {"tipo": "Dinero", "cantidad": cantidad}
+                            pedido_usuario[nombre] = {"tipo": "Dinero", "texto_cant": f"${monto} pesos", "subtotal": float(monto)}
                 st.markdown("<br>", unsafe_allow_html=True)
+
+            st.markdown("---")
+            
+            # --- NUEVA SECCIÓN: RESUMEN DEL PEDIDO EN PANTALLA ---
+            st.write("### 🛒 Resumen de tu Compra")
+            
+            if not pedido_usuario:
+                st.info("Aún no has agregado ningún producto a tu carrito.")
+            else:
+                html_resumen = '<div class="resumen-box">'
+                total_pedido = 0.0
+                
+                for prod_nombre, detalle in pedido_usuario.items():
+                    html_resumen += f"<p style='margin:5px 0; color:white;'>• <b>{prod_nombre}</b>: {detalle['texto_cant']} — <span style='color:#25D366;'>${detalle['subtotal']:,.2f}</span></p>"
+                    total_pedido += detalle['subtotal']
+                
+                html_resumen += "<hr style='border-color:#4b5563;'>"
+                html_resumen += f"<h4 style='margin:0; color:white; text-align:right;'>Total Estimado: <span style='color:#ff4b4b; font-size:22px;'>${total_pedido:,.2f}</span></h4>"
+                html_resumen += '</div>'
+                
+                st.markdown(html_resumen, unsafe_allow_html=True)
 
             st.markdown("---")
             
@@ -168,13 +205,12 @@ else:
             
             # --- BOTÓN PARA ENVIAR POR WHATSAPP ---
             if st.button("📱 Enviar Pedido por WhatsApp"):
-                # Validar que se hayan agregado productos y datos mínimos
                 if not nombre_cliente.strip() or not direccion_cliente.strip():
                     st.warning("Por favor, ingresa tu nombre y dirección antes de enviar.")
                 elif not pedido_usuario:
                     st.warning("No has seleccionado ningún producto para tu pedido.")
                 else:
-                    # Construir el mensaje de texto para WhatsApp
+                    # Construir el mensaje de texto formateado para WhatsApp
                     texto_mensaje = f"🥩 *NUEVO PEDIDO - CARNICERÍA LA VENTANITA*\n\n"
                     texto_mensaje += f"👤 *Cliente:* {nombre_cliente.strip()}\n"
                     texto_mensaje += f"📍 *Dirección:* {direccion_cliente.strip()}\n"
@@ -183,23 +219,22 @@ else:
                     
                     texto_mensaje += f"\n🛒 *DETALLE DEL PEDIDO:*\n"
                     
+                    total_pedido = 0.0
                     for prod_nombre, detalle in pedido_usuario.items():
-                        if detalle["tipo"] == "Kilos":
-                            texto_mensaje += f"• {prod_nombre}: *{detalle['cantidad']}*\n"
-                        elif detalle["tipo"] == "Dinero":
-                            texto_mensaje += f"• {prod_nombre}: *${detalle['cantidad']} pesos*\n"
+                        texto_mensaje += f"• {prod_nombre}: *{detalle['texto_cant']}* (${detalle['subtotal']:,.2f})\n"
+                        total_pedido += detalle['subtotal']
                     
+                    texto_mensaje += f"\n💰 *TOTAL ESTIMADO:* *${total_pedido:,.2f}*\n"
                     texto_mensaje += f"\n¡Muchas gracias por su preferencia! 🙏"
                     
                     # Codificar el texto para la URL de WhatsApp
                     mensaje_codificado = urllib.parse.quote(texto_mensaje)
                     
                     # REEMPLAZA ESTE NÚMERO POR EL TUYO (código de país 52 + 10 dígitos)
-                    telefono_recibe = "525574977297" 
+                    telefono_recibe = "525500000000" 
                     
                     url_whatsapp = f"https://api.whatsapp.com/send?phone={telefono_recibe}&text={mensaje_codificado}"
                     
-                    # Mostrar enlace de redirección seguro
                     st.success("¡Pedido listo para ser enviado!")
                     st.markdown(f'<a href="{url_whatsapp}" target="_blank" style="text-decoration:none;"><button style="background-color:#25D366; color:white; border:none; padding:12px; font-weight:bold; width:100%; border-radius:5px; cursor:pointer;">👉 CLICK AQUÍ PARA RECONFIRMAR EN WHATSAPP</button></a>', unsafe_allow_html=True)
                 
