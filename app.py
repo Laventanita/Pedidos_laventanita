@@ -25,24 +25,20 @@ h1, h2, h3 {
     margin-top: 15px;
     margin-bottom: 15px;
 }
-/* Botón HTML personalizado de WhatsApp */
-.boton-wa-universal {
+/* Estilo personalizado para el botón nativo de enviar */
+div.stButton > button {
     background-color: #25D366 !important;
     color: white !important;
     font-weight: bold !important;
     width: 100% !important;
     padding: 14px !important;
     border-radius: 5px !important;
-    text-align: center !important;
-    text-decoration: none !important;
-    display: inline-block !important;
     font-size: 16px !important;
     border: none !important;
     box-shadow: 0px 4px 6px rgba(0,0,0,0.3);
     transition: background 0.3s ease;
-    margin-top: 10px;
 }
-.boton-wa-universal:hover {
+div.stButton > button:hover {
     background-color: #128C7E !important;
     color: white !important;
 }
@@ -249,7 +245,7 @@ else:
             elif not pedido_usuario:
                 st.info("Agrega productos para generar el botón de envío.")
             else:
-                # 1. Estructurar el texto plano del mensaje
+                # Construcción del mensaje estructurado
                 texto_mensaje = f"NUEVO PEDIDO LA VENTANITA\n\n"
                 texto_mensaje += f"Recomendado por: {comisionista_seleccionado}\n"
                 texto_mensaje += f"Cliente: {nombre_cliente.strip()}\n"
@@ -269,21 +265,27 @@ else:
                 total_final = subtotal_productos + COSTO_ENVIO
                 texto_mensaje += f"\nTOTAL ESTIMADO: ${total_final:,.2f}"
                 
-                # 2. Enviar la alerta espejo de forma automática a Telegram en segundo plano
-                estado_key = f"enviado_{nombre_cliente.strip().lower()}"
-                if st.session_state.get(estado_key) is not True:
-                    enviar_a_telegram(texto_mensaje)
-                    st.session_state[estado_key] = True
-                
-                # 3. Formatear la URL universal de WhatsApp
                 mensaje_codificado = urllib.parse.quote(texto_mensaje)
                 telefono_recibe = "525574977297" 
                 url_whatsapp = f"https://wa.me/{telefono_recibe}?text={mensaje_codificado}"
                 
-                # 4. Mostrar el botón listo
                 st.write("### 🎉 ¡Pedido Listo!")
-                boton_html = f'<a href="{url_whatsapp}" target="_blank" class="boton-wa-universal">📱 ENVIAR PEDIDO POR WHATSAPP</a>'
-                st.markdown(boton_html, unsafe_allow_html=True)
+                
+                # --- NUEVO MANEJO DEL BOTÓN CON ACCIÓN SIMULTÁNEA ---
+                # Al presionar el botón nativo, se ejecuta la función de Telegram una sola vez
+                # Y luego usamos una inyección de JavaScript (compatible con móviles) para abrir el WhatsApp de inmediato
+                if st.button("📱 ENVIAR PEDIDO POR WHATSAPP"):
+                    # Se dispara Telegram únicamente al hacer clic
+                    enviar_a_telegram(texto_mensaje)
+                    
+                    # Abre WhatsApp de inmediato
+                    js_abrir_wa = f"""
+                    <script>
+                        window.open("{url_whatsapp}", "_blank");
+                    </script>
+                    """
+                    st.markdown(js_abrir_wa, unsafe_allow_html=True)
+                    st.success("¡Pedido enviado a Telegram y redirigiendo a WhatsApp!")
                 
     except Exception as e:
         st.error("Error al leer los datos de la hoja de cálculo.")
