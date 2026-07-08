@@ -7,7 +7,7 @@ import requests
 # Configuración de la página
 st.set_page_config(page_title="Carnicería La Ventanita", page_icon="🥩", layout="centered")
 
-# Estilos CSS
+# Estilos CSS (Actualizados para el nuevo botón HTML)
 st.markdown("""
 <style>
 .stApp {
@@ -25,20 +25,25 @@ h1, h2, h3 {
     margin-top: 15px;
     margin-bottom: 15px;
 }
-div.stButton > button, div.stLinkButton > a {
+/* Estilo para nuestro botón HTML personalizado */
+.boton-whatsapp {
     background-color: #25D366 !important;
     color: white !important;
-    border: none !important;
     font-weight: bold !important;
     width: 100% !important;
-    padding: 12px !important;
+    padding: 14px !important;
     border-radius: 5px !important;
     text-align: center !important;
     text-decoration: none !important;
     display: inline-block !important;
+    font-size: 16px !important;
+    border: none !important;
+    box-shadow: 0px 4px 6px rgba(0,0,0,0.3);
+    transition: background 0.3s ease;
 }
-div.stButton > button:hover, div.stLinkButton > a:hover {
+.boton-whatsapp:hover {
     background-color: #128C7E !important;
+    color: white !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -156,7 +161,7 @@ else:
                                 key=f"cant_kilos_{nombre}"
                             )
                             factor = opciones_kilos[medida_kilos]
-                            costo_estimado = precio * factor  # <- ERROR CORREGIDO AQUÍ (costo_estimado)
+                            costo_estimado = precio * factor
                             pedido_usuario[nombre] = {"tipo": "Kilos", "texto_cant": medida_kilos, "subtotal": costo_estimado}
                             
                         elif tipo_pedido == "Por Dinero ($)":
@@ -224,8 +229,8 @@ else:
                 "Ninguno (Venta Directa)", 
                 "Ana", 
                 "Aurora", 
-                "Chayo", 
-                "Mary"
+                "Mary", 
+                "Chayo"
             ]
             comisionista_seleccionado = st.selectbox(
                 "Selecciona el nombre de la persona que te compartió la aplicación:",
@@ -265,12 +270,16 @@ else:
                     st.session_state[f"enviado_{nombre_cliente}"] = True
                 
                 mensaje_codificado = urllib.parse.quote_plus(texto_mensaje)
-                
                 telefono_recibe = "525574977297" 
+                
                 url_whatsapp = f"https://wa.me/{telefono_recibe}?text={mensaje_codificado}"
                 
                 st.write("### 🎉 ¡Pedido Listo!")
-                st.link_button("📱 ENVIAR PEDIDO POR WHATSAPP", url_whatsapp)
+                
+                # --- TRUCO DEFINITIVO: BOTÓN EN HTML CON target="_self" ---
+                # Esto obliga al navegador a abrir el enlace en el mismo espacio y despierta a la app de inmediato
+                boton_html = f'<a href="{url_whatsapp}" target="_self" class="boton-whatsapp">📱 ENVIAR PEDIDO POR WHATSAPP</a>'
+                st.markdown(boton_html, unsafe_allow_html=True)
                 
     except Exception as e:
         st.error("Error al leer los datos de la hoja de cálculo.")
