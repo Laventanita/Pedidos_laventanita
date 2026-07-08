@@ -2,6 +2,7 @@ import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
 import urllib.parse
+import requests
 
 # Configuración de la página
 st.set_page_config(page_title="Carnicería La Ventanita", page_icon="🥩", layout="centered")
@@ -46,6 +47,20 @@ div.stButton > button:hover, div.stLinkButton > a:hover {
 st.title("🥩 Carnicería La Ventanita")
 st.subheader("Haz tu pedido de forma fácil y rápida")
 st.markdown("---")
+
+# Función para enviar notificación espejo a Telegram
+def enviar_a_telegram(mensaje):
+    try:
+        token = st.secrets["telegram"]["bot_token"]
+        chat_id = st.secrets["telegram"]["chat_id"]
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        payload = {
+            "chat_id": chat_id,
+            "text": mensaje
+        }
+        requests.post(url, json=payload)
+    except Exception as e:
+        pass
 
 # Función para conectar a Google Sheets
 def conectar_base_datos():
@@ -202,17 +217,15 @@ else:
                 
             notas_adicionales = st.text_input("Notas del pedido (Ej: término de carne, empaque, etc.):")
             
-            # --- NUEVA SECCIÓN: MENÚ DESPLEGABLE DE REFERIDOS ---
             st.markdown("<br>", unsafe_allow_html=True)
             st.write("### 🤝 ¿Quién te recomendó?")
             
-            # Modifica esta lista con los nombres reales de tus comisionistas
             lista_comisionistas = [
                 "Ninguno (Venta Directa)", 
+                "Papelería (Folleto)", 
+                "Carlos", 
                 "Ana", 
-                "Mary", 
-                "Aurora", 
-                "Mixi"
+                "Juan"
             ]
             comisionista_seleccionado = st.selectbox(
                 "Selecciona el nombre de la persona que te compartió la aplicación:",
@@ -228,35 +241,39 @@ else:
             elif not pedido_usuario:
                 st.info("Agrega productos para generar el botón de envío.")
             else:
-                texto_mensaje = f"🥩 *NUEVO PEDIDO - CARNICERÍA LA VENTANITA*\n\n"
-                texto_mensaje += f"📢 *Recomendado por:* {comisionista_seleccionado}\n"  # <- AGREGA LA SELECCIÓN AL WHATSAPP
-                texto_mensaje += f"👤 *Cliente:* {nombre_cliente.strip()}\n"
-                texto_mensaje += f"🛵 *Modalidad:* {tipo_entrega}\n"
+                # TEXTO COMPLETAMENTE LIMPIO DE EXTRAÑOS PARA PREVENIR ERRORES DE CODIFICACIÓN
+                texto_mensaje = f"NUEVO PEDIDO - CARNICERIA LA VENTANITA\n\n"
+                texto_mensaje += f"Recomendado por: {comisionista_seleccionado}\n"
+                texto_mensaje += f"Cliente: {nombre_cliente.strip()}\n"
+                texto_mensaje += f"Modalidad: {tipo_entrega}\n"
                 if tipo_entrega == "Entrega a domicilio":
-                    texto_mensaje += f"📍 *Dirección:* {direccion_cliente.strip()}\n"
-                texto_mensaje += f"💳 *Método de Pago:* {metodo_pago}\n"
+                    texto_mensaje += f"Direccion: {direccion_cliente.strip()}\n"
+                texto_mensaje += f"Metodo de Pago: {metodo_pago}\n"
                 if notas_adicionales.strip():
-                    texto_mensaje += f"📝 *Notas:* {notas_adicionales.strip()}\n"
+                    texto_mensaje += f"Notas: {notas_adicionales.strip()}\n"
                 
-                texto_mensaje += f"\n🛒 *DETALLE DEL PEDIDO:*\n"
+                texto_mensaje += f"\nDETALLE DEL PEDIDO:\n"
                 subtotal_productos = 0.0
                 for prod_nombre, detalle in pedido_usuario.items():
-                    texto_mensaje += f"• {prod_nombre}: *{detalle['texto_cant']}* (${detalle['subtotal']:,.2f})\n"
+                    texto_mensaje += f"- {prod_nombre}: {detalle['texto_cant']} (${detalle['subtotal']:,.2f})\n"
                     subtotal_productos += detalle['subtotal']
                 
-                texto_mensaje += f"\n💵 *Subtotal productos:* ${subtotal_productos:,.2f}\n"
+                texto_mensaje += f"\nSubtotal productos: ${subtotal_productos:,.2f}\n"
                 if COSTO_ENVIO > 0:
-                    texto_mensaje += f"🛵 *Envío a domicilio:* ${COSTO_ENVIO:,.2f}\n"
+                    texto_mensaje += f"Envio a domicilio: ${COSTO_ENVIO:,.2f}\n"
                 
                 total_final = subtotal_productos + COSTO_ENVIO
-                texto_mensaje += f"💰 *TOTAL ESTIMADO:* *${total_final:,.2f}*\n"
-                texto_mensaje += f"\n¡Muchas gracias por su preferencia! 🙏"
+                texto_mensaje += f"TOTAL ESTIMADO: ${total_final:,.2f}\n"
+                texto_mensaje += f"\nGracias por su preferencia."
                 
+                if st.session_state.get(f"enviado_{nombre_cliente}") is not True:
+                    enviar_a_telegram(texto_mensaje)
+                    st.session_state[f"enviado_{nombre_cliente}"] = True
+                
+                # Codificación limpia
                 mensaje_codificado = urllib.parse.quote(texto_mensaje)
                 
-                # --- RECUERDA ASIGNAR EL NÚMERO DE WHATSAPP DE TU ESPOSA AQUÍ ---
                 telefono_recibe = "525574977297" 
-                
                 url_whatsapp = f"https://api.whatsapp.com/send?phone={telefono_recibe}&text={mensaje_codificado}"
                 
                 st.write("### 🎉 ¡Pedido Listo!")
