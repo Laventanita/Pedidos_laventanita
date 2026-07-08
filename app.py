@@ -1,6 +1,6 @@
 import streamlit as st
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 import urllib.parse
 
 # Configuración de la página
@@ -51,10 +51,13 @@ st.title("🥩 Carnicería La Ventanita")
 st.subheader("Haz tu pedido de forma fácil y rápida")
 st.markdown("---")
 
-# Función para conectar a Google Sheets usando los Secrets de Streamlit
+# Función optimizada para conectar a Google Sheets sin dependencias externas viejas
 def conectar_base_datos():
     try:
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        scopes = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive"
+        ]
         
         creds_dict = {
             "type": st.secrets["gspread"]["type"],
@@ -70,7 +73,7 @@ def conectar_base_datos():
             "universe_domain": st.secrets["gspread"]["universe_domain"]
         }
         
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
         client = gspread.authorize(creds)
         
         # Abre la hoja de cálculo por su nombre exacto
@@ -174,7 +177,7 @@ else:
 
             st.markdown("---")
             
-            # --- NUEVA SECCIÓN: RESUMEN DEL PEDIDO EN PANTALLA ---
+            # --- SECCIÓN: RESUMEN DEL PEDIDO EN PANTALLA ---
             st.write("### 🛒 Resumen de tu Compra")
             
             if not pedido_usuario:
@@ -230,8 +233,8 @@ else:
                     # Codificar el texto para la URL de WhatsApp
                     mensaje_codificado = urllib.parse.quote(texto_mensaje)
                     
-                    # REEMPLAZA ESTE NÚMERO POR EL TUYO (código de país 52 + 10 dígitos)
-                    telefono_recibe = "525500000000" 
+                    # REEMPLAZA ESTE NÚMERO POR EL TUYO (código de país 52 + 10 dígitos de tu cel)
+                    telefono_recibe = "525574977297" 
                     
                     url_whatsapp = f"https://api.whatsapp.com/send?phone={telefono_recibe}&text={mensaje_codificado}"
                     
