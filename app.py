@@ -6,7 +6,7 @@ import urllib.parse
 # Configuración de la página
 st.set_page_config(page_title="Carnicería La Ventanita", page_icon="🥩", layout="centered")
 
-# Inyección de diseño CSS limpio
+# Estilos CSS
 st.markdown("""
 <style>
 .stApp {
@@ -16,7 +16,6 @@ h1, h2, h3 {
     color: #ffffff !important;
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
-/* Estilo personalizado para las tarjetas de resumen */
 .resumen-box {
     background-color: #1f2937;
     padding: 20px;
@@ -40,7 +39,7 @@ div.stButton > button:first-child:hover {
 </style>
 """, unsafe_allow_html=True)
 
-# Encabezado de la aplicación
+# Encabezado
 st.title("🥩 Carnicería La Ventanita")
 st.subheader("Haz tu pedido de forma fácil y rápida")
 st.markdown("---")
@@ -74,17 +73,25 @@ def conectar_base_datos():
     except Exception as e:
         return None
 
-# Intentar obtener los datos
 sheet = conectar_base_datos()
 
 if sheet is None:
     st.error("Error al conectar con la base de datos. Verifica la configuración de Secrets.")
 else:
     try:
-        # Leer todas las filas de la hoja de cálculo
+        # 1. Obtener los productos
         datos = sheet.get_all_records()
         
-        # Filtrar los productos aceptando "SI" o "TRUE"
+        # 2. NUEVO: Leer el costo de envío desde la celda E2 de tu Google Sheets
+        try:
+            envio_raw = sheet.acell('E2').value
+            # Limpiar por si tiene signo de peso o espacios
+            envio_limpio = str(envio_raw).replace("$", "").replace(",", "").strip()
+            costo_envio_base = float(envio_limpio)
+        except Exception:
+            # Si la celda está vacía o hay error, dejamos 20 pesos de respaldo
+            costo_envio_base = 20.0
+        
         productos_disponibles = []
         for p in datos:
             val_disponible = p.get("Disponible", "")
@@ -99,10 +106,8 @@ else:
             st.write("### 📝 Configura tu Pedido")
             st.caption("Haz clic en cualquier producto para desplegar sus opciones de cantidad")
             
-            # Diccionario para almacenar lo que seleccione el usuario
             pedido_usuario = {}
             
-            # Opciones de kilos
             opciones_kilos = {
                 "1/4 kg (250g)": 0.25,
                 "1/2 kg (500g)": 0.50,
@@ -116,18 +121,15 @@ else:
                 "5 kg": 5.0
             }
             
-            # Mostrar cada producto dentro de un menú desplegable (Acordeón)
             for prod in productos_disponibles:
                 nombre = prod.get("Producto", "Sin nombre")
                 
-                # Limpiar el precio
                 precio_raw = str(prod.get("Precio", 0)).replace("$", "").replace(",", "").strip()
                 try:
                     precio = float(precio_raw)
                 except ValueError:
                     precio = 0.0
                 
-                # Crear el menú desplegable (Expander) para cada producto
                 with st.expander(f"➕ {nombre} — (Precio por Kg: ${precio:,.2f})"):
                     col1, col2 = st.columns([1, 1])
                     with col1:
@@ -141,7 +143,7 @@ else:
                             medida_kilos = st.selectbox(
                                 "Selecciona el peso:",
                                 list(opciones_kilos.keys()),
-                                index=3,  # 1 kg por defecto
+                                index=3,
                                 key=f"cant_kilos_{nombre}"
                             )
                             factor = opciones_kilos[medida_kilos]
@@ -161,6 +163,25 @@ else:
 
             st.markdown("---")
             
+            # --- SECCIÓN DE TIPO DE ENTREGA Y PAGO ---
+            st.write("### 🛵 Tipo de Entrega y Pago")
+            
+            col_ent1, col_ent2 = st.columns([1, 1])
+            with col_ent1:
+                tipo_entrega = st.radio(
+                    "Modalidad de entrega:",
+                    ["Entrega a domicilio", "Recoger en tienda"]
+                )
+            
+            # Si eligen a domicilio toma el valor del Excel, si recogen en tienda es 0
+            COSTO_ENVIO = costo_envio_base if tipo_entrega == "Entrega a domicilio" else 0.0
+            
+            with col_ent2:
+                metodo_pago = st.selectbox(
+                    "Método de pago:",
+                    ["Efectivo", "Transferencia", "Tarjeta de Débito/Crédito"]
+                )
+
             # --- SECCIÓN: RESUMEN DEL PEDIDO EN PANTALLA ---
             st.write("### 🛒 Resumen de tu Compra")
             
@@ -168,65 +189,79 @@ else:
                 st.info("Aún no has agregado ningún producto a tu carrito.")
             else:
                 html_resumen = '<div class="resumen-box">'
-                total_pedido = 0.0
+                subtotal_productos = 0.0
                 
                 for prod_nombre, detalle in pedido_usuario.items():
                     html_resumen += f"<p style='margin:5px 0; color:white;'>• <b>{prod_nombre}</b>: {detalle['texto_cant']} — <span style='color:#25D366;'>${detalle['subtotal']:,.2f}</span></p>"
-                    total_pedido += detalle['subtotal']
+                    subtotal_productos += detalle['subtotal']
                 
                 html_resumen += "<hr style='border-color:#4b5563;'>"
-                html_resumen += f"<h4 style='margin:0; color:white; text-align:right;'>Total Estimado: <span style='color:#ff4b4b; font-size:22px;'>${total_pedido:,.2f}</span></h4>"
+                html_resumen += f"<p style='margin:5px 0; color:#cbd5e1;'>Subtotal productos: <b>${subtotal_productos:,.2f}</b></p>"
+                
+                if tipo_entrega == "Entrega a domicilio":
+                    html_resumen += f"<p style='margin:5px 0; color:#cbd5e1;'>Costo de envío a domicilio: <b>${COSTO_ENVIO:,.2f}</b></p>"
+                else:
+                    html_resumen += "<p style='margin:5px 0; color:#cbd5e1;'>Entrega: <b>Sin costo (Recoge en tienda)</b></p>"
+                
+                total_final = subtotal_productos + COSTO_ENVIO
+                html_resumen += f"<h4 style='margin:10px 0 0 0; color:white; text-align:right;'>Total Estimado: <span style='color:#ff4b4b; font-size:22px;'>${total_final:,.2f}</span></h4>"
                 html_resumen += '</div>'
                 
                 st.markdown(html_resumen, unsafe_allow_html=True)
 
             st.markdown("---")
             
-            # --- SECCIÓN DE DATOS DEL CLIENTE Y MÉTODO DE PAGO ---
-            st.write("### 👤 Datos de Entrega y Pago")
+            # --- DATOS DE CLIENTE ---
+            st.write("### 👤 Datos del Cliente")
             nombre_cliente = st.text_input("Nombre completo:")
-            direccion_cliente = st.text_area("Dirección completa (Calle, Número, Colonia):")
             
-            # NUEVO: Selección de Método de Pago
-            metodo_pago = st.selectbox(
-                "Selecciona tu método de pago:",
-                ["Efectivo", "Transferencia", "Tarjeta de Débito/Crédito"]
-            )
-            
+            if tipo_entrega == "Entrega a domicilio":
+                direccion_cliente = st.text_area("Dirección completa (Calle, Número, Colonia):")
+            else:
+                direccion_cliente = "N/A (Recoge en sucursal)"
+                
             notas_adicionales = st.text_input("Notas del pedido (Ej: término de carne, empaque, etc.):")
             
             st.markdown("<br>", unsafe_allow_html=True)
             
-            # --- BOTÓN PARA ENVIAR POR WHATSAPP ---
+            # --- BOTÓN WHATSAPP ---
             if st.button("📱 Enviar Pedido por WhatsApp"):
-                if not nombre_cliente.strip() or not direccion_cliente.strip():
-                    st.warning("Por favor, ingresa tu nombre y dirección antes de enviar.")
+                if not nombre_cliente.strip():
+                    st.warning("Por favor, ingresa tu nombre antes de enviar.")
+                elif tipo_entrega == "Entrega a domicilio" and not direccion_cliente.strip():
+                    st.warning("Por favor, ingresa tu dirección para el envío.")
                 elif not pedido_usuario:
                     st.warning("No has seleccionado ningún producto para tu pedido.")
                 else:
-                    # Construir el mensaje de WhatsApp
+                    # Construir mensaje de WhatsApp
                     texto_mensaje = f"🥩 *NUEVO PEDIDO - CARNICERÍA LA VENTANITA*\n\n"
                     texto_mensaje += f"👤 *Cliente:* {nombre_cliente.strip()}\n"
-                    texto_mensaje += f"📍 *Dirección:* {direccion_cliente.strip()}\n"
+                    texto_mensaje += f"🛵 *Modalidad:* {tipo_entrega}\n"
+                    if tipo_entrega == "Entrega a domicilio":
+                        texto_mensaje += f"📍 *Dirección:* {direccion_cliente.strip()}\n"
                     texto_mensaje += f"💳 *Método de Pago:* {metodo_pago}\n"
                     if notas_adicionales.strip():
                         texto_mensaje += f"📝 *Notas:* {notas_adicionales.strip()}\n"
                     
                     texto_mensaje += f"\n🛒 *DETALLE DEL PEDIDO:*\n"
                     
-                    total_pedido = 0.0
+                    subtotal_productos = 0.0
                     for prod_nombre, detalle in pedido_usuario.items():
                         texto_mensaje += f"• {prod_nombre}: *{detalle['texto_cant']}* (${detalle['subtotal']:,.2f})\n"
-                        total_pedido += detalle['subtotal']
+                        subtotal_productos += detalle['subtotal']
                     
-                    texto_mensaje += f"\n💰 *TOTAL ESTIMADO:* *${total_pedido:,.2f}*\n"
+                    texto_mensaje += f"\n💵 *Subtotal productos:* ${subtotal_productos:,.2f}\n"
+                    if COSTO_ENVIO > 0:
+                        texto_mensaje += f"🛵 *Envío a domicilio:* ${COSTO_ENVIO:,.2f}\n"
+                    
+                    total_final = subtotal_productos + COSTO_ENVIO
+                    texto_mensaje += f"💰 *TOTAL ESTIMADO:* *${total_final:,.2f}*\n"
                     texto_mensaje += f"\n¡Muchas gracias por su preferencia! 🙏"
                     
-                    # Codificar el texto para la URL
                     mensaje_codificado = urllib.parse.quote(texto_mensaje)
                     
-                    # Recuerda cambiar este número por el tuyo oficial (52 + 10 dígitos)
-                    telefono_recibe = "525574977297" 
+                    # Recuerda poner tus 10 dígitos de cel aquí
+                    telefono_recibe = "525574977297"  
                     
                     url_whatsapp = f"https://api.whatsapp.com/send?phone={telefono_recibe}&text={mensaje_codificado}"
                     
