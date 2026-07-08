@@ -45,6 +45,13 @@ div.stButton > button:hover {
 </style>
 """, unsafe_allow_html=True)
 
+# Inicializar el contador de reinicio global si no existe
+if "contador_app" not in st.session_state:
+    st.session_state["contador_app"] = 0
+
+# Guardamos el prefijo actual basado en el contador
+prefijo = f"v_{st.session_state['contador_app']}_"
+
 # Encabezado
 st.title("🥩 Carnicería La Ventanita")
 st.subheader("Haz tu pedido de forma fácil y rápida")
@@ -60,7 +67,6 @@ def enviar_a_telegram(mensaje):
             "chat_id": chat_id,
             "text": mensaje
         }
-        # Forzamos una respuesta rápida de la API de Telegram
         respuesta = requests.post(url, json=payload, timeout=5)
         return respuesta.status_code == 200
     except Exception as e:
@@ -93,10 +99,13 @@ def conectar_base_datos():
     except Exception as e:
         return None
 
-# Función para limpiar la pantalla y reiniciar la app
+# Función modificada para forzar el reinicio visual completo
 def limpiar_pedido():
-    for key in list(st.session_state.keys()):
-        del st.session_state[key]
+    # Incrementamos el contador para cambiar dinámicamente todos los IDs visuales
+    st.session_state["contador_app"] += 1
+    # Borramos el control del botón de WhatsApp para ocultarlo
+    if "mostrar_boton_wa" in st.session_state:
+        del st.session_state["mostrar_boton_wa"]
     st.rerun()
 
 sheet = conectar_base_datos()
@@ -149,13 +158,14 @@ else:
                 except ValueError:
                     precio = 0.0
                 
-                with st.expander(f"➕ {nombre} — (Precio por Kg: ${precio:,.2f})"):
+                # Al añadirle el prefijo dinámico a la key del expander, se cerrará solo al limpiar
+                with st.expander(f"➕ {nombre} — (Precio por Kg: ${precio:,.2f})", expanded=False):
                     col1, col2 = st.columns([1, 1])
                     with col1:
                         tipo_pedido = st.selectbox(
                             "¿Cómo quieres pedir?", 
                             ["No pedir", "Por Kilos", "Por Dinero ($)"], 
-                            key=f"tipo_{nombre}"
+                            key=f"{prefijo}tipo_{nombre}"
                         )
                     with col2:
                         if tipo_pedido == "Por Kilos":
@@ -163,7 +173,7 @@ else:
                                 "Selecciona el peso:",
                                 list(opciones_kilos.keys()),
                                 index=3,
-                                key=f"cant_kilos_{nombre}"
+                                key=f"{prefijo}cant_kilos_{nombre}"
                             )
                             factor = opciones_kilos[medida_kilos]
                             costo_estimado = precio * factor
@@ -176,7 +186,7 @@ else:
                                 max_value=5000, 
                                 value=100, 
                                 step=10, 
-                                key=f"cant_dinero_{nombre}"
+                                key=f"{prefijo}cant_dinero_{nombre}"
                             )
                             pedido_usuario[nombre] = {"tipo": "Dinero", "texto_cant": f"${monto} pesos", "subtotal": float(monto)}
 
@@ -185,12 +195,12 @@ else:
             st.write("### 🛵 Tipo de Entrega y Pago")
             col_ent1, col_ent2 = st.columns([1, 1])
             with col_ent1:
-                tipo_entrega = st.radio("Modalidad de entrega:", ["Entrega a domicilio", "Recoger en tienda"], key="entrega_radio")
+                tipo_entrega = st.radio("Modalidad de entrega:", ["Entrega a domicilio", "Recoger en tienda"], key=f"{prefijo}entrega_radio")
             
             COSTO_ENVIO = costo_envio_base if tipo_entrega == "Entrega a domicilio" else 0.0
             
             with col_ent2:
-                metodo_pago = st.selectbox("Método de pago:", ["Efectivo", "Transferencia", "Tarjeta de Débito/Crédito"], key="pago_select")
+                metodo_pago = st.selectbox("Método de pago:", ["Efectivo", "Transferencia", "Tarjeta de Débito/Crédito"], key=f"{prefijo}pago_select")
 
             st.write("### 🛒 Resumen de tu Compra")
             if not pedido_usuario:
@@ -218,15 +228,15 @@ else:
             st.markdown("---")
             
             st.write("### 👤 Datos del Cliente")
-            nombre_cliente = st.text_input("Nombre completo:", key="input_nombre")
+            nombre_cliente = st.text_input("Nombre completo:", key=f"{prefijo}input_nombre")
             
             if tipo_entrega == "Entrega a domicilio":
-                direccion_raw = st.text_area("Dirección completa (Calle, Número, Colonia):", key="input_direccion")
+                direccion_raw = st.text_area("Dirección completa (Calle, Número, Colonia):", key=f"{prefijo}input_direccion")
                 direccion_cliente = direccion_raw.replace("\n", " ").strip()
             else:
                 direccion_cliente = "N/A"
                 
-            notas_raw = st.text_input("Notas del pedido:", key="input_notas")
+            notas_raw = st.text_input("Notas del pedido:", key=f"{prefijo}input_notas")
             notas_adicionales = notas_raw.replace("\n", " ").strip()
             
             st.markdown("<br>", unsafe_allow_html=True)
@@ -242,7 +252,7 @@ else:
             comisionista_seleccionado = st.selectbox(
                 "Selecciona el nombre de la persona que te compartió la aplicación:",
                 lista_comisionistas,
-                key="select_comisionista"
+                key=f"{prefijo}select_comisionista"
             )
             
             st.markdown("<br>", unsafe_allow_html=True)
