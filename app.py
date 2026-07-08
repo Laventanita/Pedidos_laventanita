@@ -282,8 +282,8 @@ else:
                 if st.session_state.get("mostrar_boton_wa", False):
                     st.success("¡Pedido enviado a Telegram con éxito!")
                     
-                    # Tu enlace original limpio que sí abría WhatsApp al inicio
-                    url_whatsapp = f"https://api.whatsapp.com/send?phone={telefono_recibe}&text={mensaje_codificado}"
+                    # REEMPLÁZALA POR ESTA VERSIÓN CORTA DIRECTA:
+url_whatsapp = f"https://wa.me/{telefono_recibe}?text={mensaje_codificado}"
                     
                     # HTML corregido apuntando a {url_whatsapp}
                     boton_html = f"""
