@@ -156,8 +156,8 @@ else:
                                 key=f"cant_kilos_{nombre}"
                             )
                             factor = opciones_kilos[medida_kilos]
-                            costo_estimado = precio * factor
-                            pedido_usuario[nombre] = {"tipo": "Kilos", "texto_cant": medida_kilos, "subtotal": costo_estimaged}
+                            costo_estimado = precio * factor  # <- ERROR CORREGIDO AQUÍ (costo_estimado)
+                            pedido_usuario[nombre] = {"tipo": "Kilos", "texto_cant": medida_kilos, "subtotal": costo_estimado}
                             
                         elif tipo_pedido == "Por Dinero ($)":
                             monto = st.number_input(
@@ -224,8 +224,8 @@ else:
                 "Ninguno (Venta Directa)", 
                 "Ana", 
                 "Aurora", 
-                "Mary", 
-                "Chayo"
+                "Chayo", 
+                "Mary"
             ]
             comisionista_seleccionado = st.selectbox(
                 "Selecciona el nombre de la persona que te compartió la aplicación:",
@@ -241,7 +241,6 @@ else:
             elif not pedido_usuario:
                 st.info("Agrega productos para generar el botón de envío.")
             else:
-                # Formato ultra compacto y plano para evitar errores de red en el móvil
                 texto_mensaje = f"NUEVO PEDIDO LA VENTANITA\n"
                 texto_mensaje += f"Recomendado por: {comisionista_seleccionado}\n"
                 texto_mensaje += f"Cliente: {nombre_cliente.strip()}\n"
@@ -265,12 +264,9 @@ else:
                     enviar_a_telegram(texto_mensaje)
                     st.session_state[f"enviado_{nombre_cliente}"] = True
                 
-                # quote_plus cambia espacios por '+' o '%20' de forma estricta, lo que digiere mejor WhatsApp Web
                 mensaje_codificado = urllib.parse.quote_plus(texto_mensaje)
                 
                 telefono_recibe = "525574977297" 
-                
-                # Cambio al protocolo wa.me/ limpio
                 url_whatsapp = f"https://wa.me/{telefono_recibe}?text={mensaje_codificado}"
                 
                 st.write("### 🎉 ¡Pedido Listo!")
