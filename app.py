@@ -25,8 +25,8 @@ h1, h2, h3 {
     margin-top: 15px;
     margin-bottom: 15px;
 }
-/* Estilo personalizado para el botón nativo de enviar */
-div.stButton > button {
+/* Estilo para los botones */
+div.stButton > button, div.stLinkButton > a {
     background-color: #25D366 !important;
     color: white !important;
     font-weight: bold !important;
@@ -35,10 +35,12 @@ div.stButton > button {
     border-radius: 5px !important;
     font-size: 16px !important;
     border: none !important;
+    text-align: center !important;
+    text-decoration: none !important;
+    display: inline-block !important;
     box-shadow: 0px 4px 6px rgba(0,0,0,0.3);
-    transition: background 0.3s ease;
 }
-div.stButton > button:hover {
+div.stButton > button:hover, div.stLinkButton > a:hover {
     background-color: #128C7E !important;
     color: white !important;
 }
@@ -245,7 +247,7 @@ else:
             elif not pedido_usuario:
                 st.info("Agrega productos para generar el botón de envío.")
             else:
-                # Construcción del mensaje estructurado
+                # Construcción del texto del mensaje
                 texto_mensaje = f"NUEVO PEDIDO LA VENTANITA\n\n"
                 texto_mensaje += f"Recomendado por: {comisionista_seleccionado}\n"
                 texto_mensaje += f"Cliente: {nombre_cliente.strip()}\n"
@@ -271,21 +273,18 @@ else:
                 
                 st.write("### 🎉 ¡Pedido Listo!")
                 
-                # --- NUEVO MANEJO DEL BOTÓN CON ACCIÓN SIMULTÁNEA ---
-                # Al presionar el botón nativo, se ejecuta la función de Telegram una sola vez
-                # Y luego usamos una inyección de JavaScript (compatible con móviles) para abrir el WhatsApp de inmediato
-                if st.button("📱 ENVIAR PEDIDO POR WHATSAPP"):
-                    # Se dispara Telegram únicamente al hacer clic
-                    enviar_a_telegram(texto_mensaje)
-                    
-                    # Abre WhatsApp de inmediato
-                    js_abrir_wa = f"""
-                    <script>
-                        window.open("{url_whatsapp}", "_blank");
-                    </script>
-                    """
-                    st.markdown(js_abrir_wa, unsafe_allow_html=True)
-                    st.success("¡Pedido enviado a Telegram y redirigiendo a WhatsApp!")
+                # Paso 1: Botón para procesar y alertar a Telegram
+                if st.button("🔄 CONFIRMAR Y GENERAR ENLACE"):
+                    estado_key = f"enviado_{nombre_cliente.strip().lower()}"
+                    if st.session_state.get(estado_key) is not True:
+                        enviar_a_telegram(texto_mensaje)
+                        st.session_state[estado_key] = True
+                    st.session_state["mostrar_boton_wa"] = True
                 
+                # Paso 2: Si ya se procesó, muestra el botón de enlace real que el móvil NO bloqueará
+                if st.session_state.get("mostrar_boton_wa", False):
+                    st.success("¡Pedido registrado en Telegram con éxito!")
+                    st.link_button("📱 ABRIR WHATSAPP PARA ENVIAR", url_whatsapp)
+
     except Exception as e:
         st.error("Error al leer los datos de la hoja de cálculo.")
