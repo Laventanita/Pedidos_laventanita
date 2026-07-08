@@ -39,28 +39,12 @@ div.stButton > button, div.stLinkButton > a {
 div.stButton > button:hover, div.stLinkButton > a:hover {
     background-color: #128C7E !important;
 }
-.grupo-btn a {
-    background-color: #f59e0b !important;
-}
-.grupo-btn a:hover {
-    background-color: #d97706 !important;
-}
 </style>
 """, unsafe_allow_html=True)
-
-# --- DETECCIÓN DE COMISIONISTA DESDE LA URL ---
-# Si el link es: app.streamlit.app/?ref=Juan, el programa detecta "Juan"
-query_params = st.query_params
-comisionista_detectado = query_params.get("ref", "Venta Directa (Sin Referido)")
 
 # Encabezado
 st.title("🥩 Carnicería La Ventanita")
 st.subheader("Haz tu pedido de forma fácil y rápida")
-
-# Mostrar discretamente al cliente que su pedido está asignado (opcional, da confianza)
-if comisionista_detectado != "Venta Directa (Sin Referido)":
-    st.caption(f"🤝 Atendido a través de nuestro promotor autorizado: **{comisionista_detectado}**")
-
 st.markdown("---")
 
 # Función para conectar a Google Sheets
@@ -218,6 +202,23 @@ else:
                 
             notas_adicionales = st.text_input("Notas del pedido (Ej: término de carne, empaque, etc.):")
             
+            # --- NUEVA SECCIÓN: MENÚ DESPLEGABLE DE REFERIDOS ---
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.write("### 🤝 ¿Quién te recomendó?")
+            
+            # Modifica esta lista con los nombres reales de tus comisionistas
+            lista_comisionistas = [
+                "Ninguno (Venta Directa)", 
+                "Ana", 
+                "Mary", 
+                "Aurora", 
+                "Mixi"
+            ]
+            comisionista_seleccionado = st.selectbox(
+                "Selecciona el nombre de la persona que te compartió la aplicación:",
+                lista_comisionistas
+            )
+            
             st.markdown("<br>", unsafe_allow_html=True)
             
             if not nombre_cliente.strip():
@@ -228,7 +229,7 @@ else:
                 st.info("Agrega productos para generar el botón de envío.")
             else:
                 texto_mensaje = f"🥩 *NUEVO PEDIDO - CARNICERÍA LA VENTANITA*\n\n"
-                texto_mensaje += f"📢 *Comisionista:* {comisionista_detectado}\n"  # <- AQUÍ SE AGREGA EL RASTREO AUTOMÁTICO
+                texto_mensaje += f"📢 *Recomendado por:* {comisionista_seleccionado}\n"  # <- AGREGA LA SELECCIÓN AL WHATSAPP
                 texto_mensaje += f"👤 *Cliente:* {nombre_cliente.strip()}\n"
                 texto_mensaje += f"🛵 *Modalidad:* {tipo_entrega}\n"
                 if tipo_entrega == "Entrega a domicilio":
@@ -253,19 +254,13 @@ else:
                 
                 mensaje_codificado = urllib.parse.quote(texto_mensaje)
                 
-                # RECUERDA PONER EL NÚMERO DE TU ESPOSA AQUÍ ABAJO
-                telefono_recibe = "525574977297"
-                url_whatsapp = f"https://wa.me/{telefono_recibe}?text={mensaje_codificado}"
+                # --- RECUERDA ASIGNAR EL NÚMERO DE WHATSAPP DE TU ESPOSA AQUÍ ---
+                telefono_recibe = "525574977297" 
+                
+                url_whatsapp = f"https://api.whatsapp.com/send?phone={telefono_recibe}&text={mensaje_codificado}"
                 
                 st.write("### 🎉 ¡Pedido Listo!")
                 st.link_button("📱 ENVIAR PEDIDO POR WHATSAPP", url_whatsapp)
-                
-                st.markdown("---")
-                st.write("### 📢 ¡Únete a nuestra Comunidad!")
-                url_grupo = "https://chat.whatsapp.com/EycCM3OtpTF48GamCPzol5"
-                st.markdown('<div class="grupo-btn">', unsafe_allow_html=True)
-                st.link_button("✨ UNIRME AL GRUPO DE WHATSAPP", url_grupo)
-                st.markdown('</div>', unsafe_allow_html=True)
                 
     except Exception as e:
         st.error("Error al leer los datos de la hoja de cálculo.")
