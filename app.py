@@ -283,7 +283,7 @@ else:
                     st.success("¡Pedido enviado a Telegram con éxito!")
                     
                     # Reemplaza la línea del intent anterior por esta versión limpia y universal:
-                    url_intent_android = f"intent://send?phone={telefono_recibe}&text={mensaje_codificado}#Intent;scheme=whatsapp;end"
+                    url_whatsapp = f"https://api.whatsapp.com/send?phone={telefono_recibe}&text={mensaje_codificado}"
                     
                     boton_html = f"""
                     <a href="{url_intent_android}" style="
