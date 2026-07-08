@@ -269,7 +269,7 @@ else:
                 
                 mensaje_codificado = urllib.parse.quote(texto_mensaje)
                 telefono_recibe = "525574977297" 
-                url_whatsapp = f"https://api.whatsapp.com/send?phone={telefono_recibe}&text={mensaje_codificado}"
+                url_whatsapp = f"whatsapp://send?phone={telefono_recibe}&text={mensaje_codificado}"
                 
                 st.write("### 🎉 ¡Pedido Listo!")
                 
