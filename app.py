@@ -283,7 +283,7 @@ else:
                     st.success("¡Pedido enviado a Telegram con éxito!")
                     
                     # REEMPLÁZALA POR ESTA VERSIÓN CORTA DIRECTA:
-url_whatsapp = f"https://wa.me/{telefono_recibe}?text={mensaje_codificado}"
+                    url_whatsapp = f"https://wa.me/{telefono_recibe}?text={mensaje_codificado}"
                     
                     # HTML corregido apuntando a {url_whatsapp}
                     boton_html = f"""
