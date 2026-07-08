@@ -91,6 +91,13 @@ def conectar_base_datos():
     except Exception as e:
         return None
 
+# Función para limpiar la pantalla y reiniciar la app
+def limpiar_pedido():
+    # Eliminamos las variables de control para resetear formularios y botones
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.rerun()
+
 sheet = conectar_base_datos()
 
 if sheet is None:
@@ -177,12 +184,12 @@ else:
             st.write("### 🛵 Tipo de Entrega y Pago")
             col_ent1, col_ent2 = st.columns([1, 1])
             with col_ent1:
-                tipo_entrega = st.radio("Modalidad de entrega:", ["Entrega a domicilio", "Recoger en tienda"])
+                tipo_entrega = st.radio("Modalidad de entrega:", ["Entrega a domicilio", "Recoger en tienda"], key="entrega_radio")
             
             COSTO_ENVIO = costo_envio_base if tipo_entrega == "Entrega a domicilio" else 0.0
             
             with col_ent2:
-                metodo_pago = st.selectbox("Método de pago:", ["Efectivo", "Transferencia", "Tarjeta de Débito/Crédito"])
+                metodo_pago = st.selectbox("Método de pago:", ["Efectivo", "Transferencia", "Tarjeta de Débito/Crédito"], key="pago_select")
 
             st.write("### 🛒 Resumen de tu Compra")
             if not pedido_usuario:
@@ -210,15 +217,15 @@ else:
             st.markdown("---")
             
             st.write("### 👤 Datos del Cliente")
-            nombre_cliente = st.text_input("Nombre completo:")
+            nombre_cliente = st.text_input("Nombre completo:", key="input_nombre")
             
             if tipo_entrega == "Entrega a domicilio":
-                direccion_raw = st.text_area("Dirección completa (Calle, Número, Colonia):")
+                direccion_raw = st.text_area("Dirección completa (Calle, Número, Colonia):", key="input_direccion")
                 direccion_cliente = direccion_raw.replace("\n", " ").strip()
             else:
                 direccion_cliente = "N/A"
                 
-            notas_raw = st.text_input("Notas del pedido:")
+            notas_raw = st.text_input("Notas del pedido:", key="input_notas")
             notas_adicionales = notas_raw.replace("\n", " ").strip()
             
             st.markdown("<br>", unsafe_allow_html=True)
@@ -233,7 +240,8 @@ else:
             ]
             comisionista_seleccionado = st.selectbox(
                 "Selecciona el nombre de la persona que te compartió la aplicación:",
-                lista_comisionistas
+                lista_comisionistas,
+                key="select_comisionista"
             )
             
             st.markdown("<br>", unsafe_allow_html=True)
@@ -278,32 +286,18 @@ else:
                         st.session_state[estado_key] = True
                     st.session_state["mostrar_boton_wa"] = True
                 
-                # Paso 2: Botón original corregido con la variable correcta
+                # Paso 2: Botón de WhatsApp con autorefresh
                 if st.session_state.get("mostrar_boton_wa", False):
                     st.success("¡Pedido enviado a Telegram con éxito!")
                     
-                    # REEMPLÁZALA POR ESTA VERSIÓN CORTA DIRECTA:
                     url_whatsapp = f"https://wa.me/{telefono_recibe}?text={mensaje_codificado}"
                     
-                    # HTML corregido apuntando a {url_whatsapp}
-                    boton_html = f"""
-                    <a href="{url_whatsapp}" style="
-                        display: block;
-                        width: 100%;
-                        background-color: #25D366;
-                        color: white;
-                        text-align: center;
-                        padding: 14px 0px;
-                        font-weight: bold;
-                        font-size: 16px;
-                        border-radius: 5px;
-                        text-decoration: none;
-                        box-shadow: 0px 4px 6px rgba(0,0,0,0.3);
-                        margin-top: 10px;
-                    ">📱 2. ENVIAR POR WHATSAPP</a>
-                    """
-                    st.markdown(boton_html, unsafe_allow_html=True)
+                    # Usamos st.link_button nativo que es más estable, y abajo un botón para concluir y limpiar
+                    st.link_button("📱 2. ENVIAR POR WHATSAPP", url_whatsapp, type="primary")
+                    
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    if st.button("🆕 CONCLUIR Y NUEVO PEDIDO"):
+                        limpiar_pedido()
                 
     except Exception as e:
-        # Mensaje de depuración real para saber qué truena exactamente
         st.error(f"Ocurrió un error en la aplicación: {str(e)}")
