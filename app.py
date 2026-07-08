@@ -7,7 +7,7 @@ import requests
 # Configuración de la página
 st.set_page_config(page_title="Carnicería La Ventanita", page_icon="🥩", layout="centered")
 
-# Estilos CSS (Actualizados para dar estilo al botón HTML universal)
+# Estilos CSS Estables
 st.markdown("""
 <style>
 .stApp {
@@ -249,6 +249,7 @@ else:
             elif not pedido_usuario:
                 st.info("Agrega productos para generar el botón de envío.")
             else:
+                # 1. Estructurar el texto plano del mensaje
                 texto_mensaje = f"NUEVO PEDIDO LA VENTANITA\n\n"
                 texto_mensaje += f"Recomendado por: {comisionista_seleccionado}\n"
                 texto_mensaje += f"Cliente: {nombre_cliente.strip()}\n"
@@ -268,21 +269,19 @@ else:
                 total_final = subtotal_productos + COSTO_ENVIO
                 texto_mensaje += f"\nTOTAL ESTIMADO: ${total_final:,.2f}"
                 
+                # 2. Enviar la alerta espejo de forma automática a Telegram en segundo plano
                 estado_key = f"enviado_{nombre_cliente.strip().lower()}"
                 if st.session_state.get(estado_key) is not True:
                     enviar_a_telegram(texto_mensaje)
                     st.session_state[estado_key] = True
                 
-                # Codificamos el mensaje de forma segura
+                # 3. Formatear la URL universal de WhatsApp
                 mensaje_codificado = urllib.parse.quote(texto_mensaje)
                 telefono_recibe = "525574977297" 
-                
-                # Formato moderno wa.me alternativo
                 url_whatsapp = f"https://wa.me/{telefono_recibe}?text={mensaje_codificado}"
                 
+                # 4. Mostrar el botón listo
                 st.write("### 🎉 ¡Pedido Listo!")
-                
-                # --- TRUCO HÍBRIDO: HTML Limpio abriendo en pestaña nueva independiente ---
                 boton_html = f'<a href="{url_whatsapp}" target="_blank" class="boton-wa-universal">📱 ENVIAR PEDIDO POR WHATSAPP</a>'
                 st.markdown(boton_html, unsafe_allow_html=True)
                 
