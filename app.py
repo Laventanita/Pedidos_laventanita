@@ -7,7 +7,7 @@ import requests
 # Configuración de la página
 st.set_page_config(page_title="Carnicería La Ventanita", page_icon="🥩", layout="centered")
 
-# Estilos CSS
+# Estilos CSS (Actualizados para dar estilo al botón HTML universal)
 st.markdown("""
 <style>
 .stApp {
@@ -25,20 +25,26 @@ h1, h2, h3 {
     margin-top: 15px;
     margin-bottom: 15px;
 }
-div.stButton > button, div.stLinkButton > a {
+/* Botón HTML personalizado de WhatsApp */
+.boton-wa-universal {
     background-color: #25D366 !important;
     color: white !important;
-    border: none !important;
     font-weight: bold !important;
     width: 100% !important;
-    padding: 12px !important;
+    padding: 14px !important;
     border-radius: 5px !important;
     text-align: center !important;
     text-decoration: none !important;
     display: inline-block !important;
+    font-size: 16px !important;
+    border: none !important;
+    box-shadow: 0px 4px 6px rgba(0,0,0,0.3);
+    transition: background 0.3s ease;
+    margin-top: 10px;
 }
-div.stButton > button:hover, div.stLinkButton > a:hover {
+.boton-wa-universal:hover {
     background-color: #128C7E !important;
+    color: white !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -243,7 +249,6 @@ else:
             elif not pedido_usuario:
                 st.info("Agrega productos para generar el botón de envío.")
             else:
-                # Texto plano sin caracteres extraños
                 texto_mensaje = f"NUEVO PEDIDO LA VENTANITA\n\n"
                 texto_mensaje += f"Recomendado por: {comisionista_seleccionado}\n"
                 texto_mensaje += f"Cliente: {nombre_cliente.strip()}\n"
@@ -263,22 +268,23 @@ else:
                 total_final = subtotal_productos + COSTO_ENVIO
                 texto_mensaje += f"\nTOTAL ESTIMADO: ${total_final:,.2f}"
                 
-                # Controlamos el estado para evitar ejecuciones fantasmas en Telegram
                 estado_key = f"enviado_{nombre_cliente.strip().lower()}"
                 if st.session_state.get(estado_key) is not True:
                     enviar_a_telegram(texto_mensaje)
                     st.session_state[estado_key] = True
                 
-                # Formato estándar de codificación de caracteres URL
+                # Codificamos el mensaje de forma segura
                 mensaje_codificado = urllib.parse.quote(texto_mensaje)
                 telefono_recibe = "525574977297" 
                 
-                # --- NUEVA ESTRUCTURA DE URL UNIVERSAL PARA MÓVILES Android/iOS ---
-                # Esta sintaxis específica obliga a saltar el navegador e ir directo a la app sin intermediarios
-                url_whatsapp = f"https://api.whatsapp.com/send/?phone={telefono_recibe}&text={mensaje_codificado}&type=phone_number&app_absent=0"
+                # Formato moderno wa.me alternativo
+                url_whatsapp = f"https://wa.me/{telefono_recibe}?text={mensaje_codificado}"
                 
                 st.write("### 🎉 ¡Pedido Listo!")
-                st.link_button("📱 ENVIAR PEDIDO POR WHATSAPP", url_whatsapp)
+                
+                # --- TRUCO HÍBRIDO: HTML Limpio abriendo en pestaña nueva independiente ---
+                boton_html = f'<a href="{url_whatsapp}" target="_blank" class="boton-wa-universal">📱 ENVIAR PEDIDO POR WHATSAPP</a>'
+                st.markdown(boton_html, unsafe_allow_html=True)
                 
     except Exception as e:
         st.error("Error al leer los datos de la hoja de cálculo.")
