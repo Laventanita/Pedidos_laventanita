@@ -7,7 +7,7 @@ import requests
 # Configuración de la página
 st.set_page_config(page_title="Carnicería La Ventanita", page_icon="🥩", layout="centered")
 
-# Estilos CSS (Actualizados para el nuevo botón HTML)
+# Estilos CSS
 st.markdown("""
 <style>
 .stApp {
@@ -25,25 +25,20 @@ h1, h2, h3 {
     margin-top: 15px;
     margin-bottom: 15px;
 }
-/* Estilo para nuestro botón HTML personalizado */
-.boton-whatsapp {
+div.stButton > button, div.stLinkButton > a {
     background-color: #25D366 !important;
     color: white !important;
+    border: none !important;
     font-weight: bold !important;
     width: 100% !important;
-    padding: 14px !important;
+    padding: 12px !important;
     border-radius: 5px !important;
     text-align: center !important;
     text-decoration: none !important;
     display: inline-block !important;
-    font-size: 16px !important;
-    border: none !important;
-    box-shadow: 0px 4px 6px rgba(0,0,0,0.3);
-    transition: background 0.3s ease;
 }
-.boton-whatsapp:hover {
+div.stButton > button:hover, div.stLinkButton > a:hover {
     background-color: #128C7E !important;
-    color: white !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -269,17 +264,16 @@ else:
                     enviar_a_telegram(texto_mensaje)
                     st.session_state[f"enviado_{nombre_cliente}"] = True
                 
-                mensaje_codificado = urllib.parse.quote_plus(texto_mensaje)
+                # Regresamos a la codificación estándar limpia que ya no genera rombos
+                mensaje_codificado = urllib.parse.quote(texto_mensaje)
                 telefono_recibe = "525574977297" 
                 
-                url_whatsapp = f"https://wa.me/{telefono_recibe}?text={mensaje_codificado}"
+                # URL estándar que abre en pestaña nueva de forma segura para Streamlit
+                url_whatsapp = f"https://api.whatsapp.com/send?phone={telefono_recibe}&text={mensaje_codificado}"
                 
                 st.write("### 🎉 ¡Pedido Listo!")
-                
-                # --- TRUCO DEFINITIVO: BOTÓN EN HTML CON target="_self" ---
-                # Esto obliga al navegador a abrir el enlace en el mismo espacio y despierta a la app de inmediato
-                boton_html = f'<a href="{url_whatsapp}" target="_self" class="boton-whatsapp">📱 ENVIAR PEDIDO POR WHATSAPP</a>'
-                st.markdown(boton_html, unsafe_allow_html=True)
+                # Botón oficial de Streamlit estable
+                st.link_button("📱 ENVIAR PEDIDO POR WHATSAPP", url_whatsapp)
                 
     except Exception as e:
         st.error("Error al leer los datos de la hoja de cálculo.")
