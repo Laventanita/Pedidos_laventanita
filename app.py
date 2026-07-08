@@ -25,23 +25,21 @@ h1, h2, h3 {
     margin-top: 15px;
     margin-bottom: 15px;
 }
-/* Estilo para los botones */
-div.stButton > button, div.stLinkButton > a {
-    background-color: #25D366 !important;
+/* Estilo para los botones nativos de Streamlit */
+div.stButton > button {
+    background-color: #1f2937 !important;
     color: white !important;
     font-weight: bold !important;
     width: 100% !important;
     padding: 14px !important;
     border-radius: 5px !important;
     font-size: 16px !important;
-    border: none !important;
-    text-align: center !important;
-    text-decoration: none !important;
-    display: inline-block !important;
+    border: 1px solid #4b5563 !important;
     box-shadow: 0px 4px 6px rgba(0,0,0,0.3);
+    transition: background 0.3s ease;
 }
-div.stButton > button:hover, div.stLinkButton > a:hover {
-    background-color: #128C7E !important;
+div.stButton > button:hover {
+    background-color: #374151 !important;
     color: white !important;
 }
 </style>
@@ -228,10 +226,10 @@ else:
             
             lista_comisionistas = [
                 "Ninguno (Venta Directa)", 
+                "Papelería (Folleto)", 
+                "Carlos", 
                 "Ana", 
-                "Aurora", 
-                "Mary", 
-                "Chayo"
+                "Juan"
             ]
             comisionista_seleccionado = st.selectbox(
                 "Selecciona el nombre de la persona que te compartió la aplicación:",
@@ -269,22 +267,42 @@ else:
                 
                 mensaje_codificado = urllib.parse.quote(texto_mensaje)
                 telefono_recibe = "525574977297" 
-                url_whatsapp = f"whatsapp://send?phone={telefono_recibe}&text={mensaje_codificado}"
                 
                 st.write("### 🎉 ¡Pedido Listo!")
                 
                 # Paso 1: Botón para procesar y alertar a Telegram
-                if st.button("🔄 CONFIRMAR Y GENERAR ENLACE"):
+                if st.button("🔄 1. CONFIRMAR REGISTRO DE PEDIDO"):
                     estado_key = f"enviado_{nombre_cliente.strip().lower()}"
                     if st.session_state.get(estado_key) is not True:
                         enviar_a_telegram(texto_mensaje)
                         st.session_state[estado_key] = True
                     st.session_state["mostrar_boton_wa"] = True
                 
-                # Paso 2: Si ya se procesó, muestra el botón de enlace real que el móvil NO bloqueará
+                # Paso 2: Si ya se procesó, muestra el botón HTML nativo que engaña al bloqueo de tu cel
                 if st.session_state.get("mostrar_boton_wa", False):
-                    st.success("¡Pedido registrado en Telegram con éxito!")
-                    st.link_button("📱 ABRIR WHATSAPP PARA ENVIAR", url_whatsapp)
-
+                    st.success("¡Pedido enviado a Telegram con éxito!")
+                    
+                    # Formato API universal clásico (el más estable para redirecciones en Android)
+                    url_whatsapp_limpia = f"https://api.whatsapp.com/send?phone={telefono_recibe}&text={mensaje_codificado}"
+                    
+                    # Botón HTML puro integrado para que el navegador de tu cel lo procese como navegación legítima
+                    boton_html = f"""
+                    <a href="{url_whatsapp_limpia}" target="_blank" style="
+                        display: block;
+                        width: 100%;
+                        background-color: #25D366;
+                        color: white;
+                        text-align: center;
+                        padding: 14px 0px;
+                        font-weight: bold;
+                        font-size: 16px;
+                        border-radius: 5px;
+                        text-decoration: none;
+                        box-shadow: 0px 4px 6px rgba(0,0,0,0.3);
+                        margin-top: 10px;
+                    ">📱 2. ENVIAR POR WHATSAPP</a>
+                    """
+                    st.markdown(boton_html, unsafe_allow_html=True)
+                
     except Exception as e:
         st.error("Error al leer los datos de la hoja de cálculo.")
