@@ -211,21 +211,23 @@ else:
             nombre_cliente = st.text_input("Nombre completo:")
             
             if tipo_entrega == "Entrega a domicilio":
-                direccion_cliente = st.text_area("Dirección completa (Calle, Número, Colonia):")
+                direccion_raw = st.text_area("Dirección completa (Calle, Número, Colonia):")
+                direccion_cliente = direccion_raw.replace("\n", " ").strip()
             else:
                 direccion_cliente = "N/A"
                 
-            notas_adicionales = st.text_input("Notas del pedido:")
+            notas_raw = st.text_input("Notas del pedido:")
+            notas_adicionales = notas_raw.replace("\n", " ").strip()
             
             st.markdown("<br>", unsafe_allow_html=True)
             st.write("### 🤝 ¿Quién te recomendó?")
             
             lista_comisionistas = [
                 "Ninguno (Venta Directa)", 
+                "Papelería (Folleto)", 
+                "Carlos", 
                 "Ana", 
-                "Aurora", 
-                "Mary", 
-                "Chayo"
+                "Juan"
             ]
             comisionista_seleccionado = st.selectbox(
                 "Selecciona el nombre de la persona que te compartió la aplicación:",
@@ -241,15 +243,16 @@ else:
             elif not pedido_usuario:
                 st.info("Agrega productos para generar el botón de envío.")
             else:
-                texto_mensaje = f"NUEVO PEDIDO LA VENTANITA\n"
+                # Texto plano sin caracteres extraños
+                texto_mensaje = f"NUEVO PEDIDO LA VENTANITA\n\n"
                 texto_mensaje += f"Recomendado por: {comisionista_seleccionado}\n"
                 texto_mensaje += f"Cliente: {nombre_cliente.strip()}\n"
                 texto_mensaje += f"Modalidad: {tipo_entrega}\n"
                 if tipo_entrega == "Entrega a domicilio":
-                    texto_mensaje += f"Direccion: {direccion_cliente.strip()}\n"
+                    texto_mensaje += f"Direccion: {direccion_cliente}\n"
                 texto_mensaje += f"Pago: {metodo_pago}\n"
-                if notas_adicionales.strip():
-                    texto_mensaje += f"Notas: {notas_adicionales.strip()}\n"
+                if notas_adicionales:
+                    texto_mensaje += f"Notas: {notas_adicionales}\n"
                 
                 texto_mensaje += f"\nPRODUCTOS:\n"
                 subtotal_productos = 0.0
@@ -260,19 +263,21 @@ else:
                 total_final = subtotal_productos + COSTO_ENVIO
                 texto_mensaje += f"\nTOTAL ESTIMADO: ${total_final:,.2f}"
                 
-                if st.session_state.get(f"enviado_{nombre_cliente}") is not True:
+                # Controlamos el estado para evitar ejecuciones fantasmas en Telegram
+                estado_key = f"enviado_{nombre_cliente.strip().lower()}"
+                if st.session_state.get(estado_key) is not True:
                     enviar_a_telegram(texto_mensaje)
-                    st.session_state[f"enviado_{nombre_cliente}"] = True
+                    st.session_state[estado_key] = True
                 
-                # Regresamos a la codificación estándar limpia que ya no genera rombos
+                # Formato estándar de codificación de caracteres URL
                 mensaje_codificado = urllib.parse.quote(texto_mensaje)
                 telefono_recibe = "525574977297" 
                 
-                # URL estándar que abre en pestaña nueva de forma segura para Streamlit
-                url_whatsapp = f"https://api.whatsapp.com/send?phone={telefono_recibe}&text={mensaje_codificado}"
+                # --- NUEVA ESTRUCTURA DE URL UNIVERSAL PARA MÓVILES Android/iOS ---
+                # Esta sintaxis específica obliga a saltar el navegador e ir directo a la app sin intermediarios
+                url_whatsapp = f"https://api.whatsapp.com/send/?phone={telefono_recibe}&text={mensaje_codificado}&type=phone_number&app_absent=0"
                 
                 st.write("### 🎉 ¡Pedido Listo!")
-                # Botón oficial de Streamlit estable
                 st.link_button("📱 ENVIAR PEDIDO POR WHATSAPP", url_whatsapp)
                 
     except Exception as e:
