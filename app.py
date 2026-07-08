@@ -274,19 +274,20 @@ else:
                 if st.button("🔄 1. CONFIRMAR REGISTRO DE PEDIDO"):
                     estado_key = f"enviado_{nombre_cliente.strip().lower()}"
                     if st.session_state.get(estado_key) is not True:
-                        enviar_a_telegram(texto_mensaje)
+                        enviar_a_telegram(texto_fancy = texto_mensaje)
                         st.session_state[estado_key] = True
                     st.session_state["mostrar_boton_wa"] = True
                 
-                # Paso 2: Si ya se confirmó, se muestra el botón con el INTENT nativo de Android
+                # Paso 2: Botón original corregido con la variable correcta
                 if st.session_state.get("mostrar_boton_wa", False):
                     st.success("¡Pedido enviado a Telegram con éxito!")
                     
-                    # Reemplaza la línea del intent anterior por esta versión limpia y universal:
+                    # Tu enlace original limpio que sí abría WhatsApp al inicio
                     url_whatsapp = f"https://api.whatsapp.com/send?phone={telefono_recibe}&text={mensaje_codificado}"
                     
+                    # HTML corregido apuntando a {url_whatsapp}
                     boton_html = f"""
-                    <a href="{url_intent_android}" style="
+                    <a href="{url_whatsapp}" style="
                         display: block;
                         width: 100%;
                         background-color: #25D366;
@@ -304,4 +305,5 @@ else:
                     st.markdown(boton_html, unsafe_allow_html=True)
                 
     except Exception as e:
-        st.error("Error al leer los datos de la hoja de cálculo.")
+        # Mensaje de depuración real para saber qué truena exactamente
+        st.error(f"Ocurrió un error en la aplicación: {str(e)}")
