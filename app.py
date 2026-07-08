@@ -274,7 +274,7 @@ else:
                 if st.button("🔄 1. CONFIRMAR REGISTRO DE PEDIDO"):
                     estado_key = f"enviado_{nombre_cliente.strip().lower()}"
                     if st.session_state.get(estado_key) is not True:
-                        enviar_a_telegram(texto_fancy = texto_mensaje)
+                        enviar_a_telegram(texto_mensaje)
                         st.session_state[estado_key] = True
                     st.session_state["mostrar_boton_wa"] = True
                 
