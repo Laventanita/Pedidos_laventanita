@@ -24,7 +24,6 @@ h1, h2, h3 {
     margin-top: 15px;
     margin-bottom: 15px;
 }
-/* Estilo para los botones nativos de Streamlit */
 div.stButton > button, div.stLinkButton > a {
     background-color: #25D366 !important;
     color: white !important;
@@ -40,12 +39,28 @@ div.stButton > button, div.stLinkButton > a {
 div.stButton > button:hover, div.stLinkButton > a:hover {
     background-color: #128C7E !important;
 }
+.grupo-btn a {
+    background-color: #f59e0b !important;
+}
+.grupo-btn a:hover {
+    background-color: #d97706 !important;
+}
 </style>
 """, unsafe_allow_html=True)
+
+# --- DETECCIÓN DE COMISIONISTA DESDE LA URL ---
+# Si el link es: app.streamlit.app/?ref=Juan, el programa detecta "Juan"
+query_params = st.query_params
+comisionista_detectado = query_params.get("ref", "Venta Directa (Sin Referido)")
 
 # Encabezado
 st.title("🥩 Carnicería La Ventanita")
 st.subheader("Haz tu pedido de forma fácil y rápida")
+
+# Mostrar discretamente al cliente que su pedido está asignado (opcional, da confianza)
+if comisionista_detectado != "Venta Directa (Sin Referido)":
+    st.caption(f"🤝 Atendido a través de nuestro promotor autorizado: **{comisionista_detectado}**")
+
 st.markdown("---")
 
 # Función para conectar a Google Sheets
@@ -55,7 +70,6 @@ def conectar_base_datos():
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/drive"
         ]
-        
         creds_dict = {
             "type": st.secrets["gspread"]["type"],
             "project_id": st.secrets["gspread"]["project_id"],
@@ -69,11 +83,10 @@ def conectar_base_datos():
             "client_x509_cert_url": st.secrets["gspread"]["client_x509_cert_url"],
             "universe_domain": st.secrets["gspread"]["universe_domain"]
         }
-        
         creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
         client = gspread.authorize(creds)
-        sheet = client.open("Carniceria").sheet1
-        return sheet
+        client_sheet = client.open("Carniceria").sheet1
+        return client_sheet
     except Exception as e:
         return None
 
@@ -83,10 +96,8 @@ if sheet is None:
     st.error("Error al conectar con la base de datos. Verifica la configuración de Secrets.")
 else:
     try:
-        # 1. Obtener los productos
         datos = sheet.get_all_records()
         
-        # 2. Leer el costo de envío desde la celda E2 de Google Sheets
         try:
             envio_raw = sheet.acell('E2').value
             envio_limpio = str(envio_raw).replace("$", "").replace(",", "").strip()
@@ -104,12 +115,10 @@ else:
         if not productos_disponibles:
             st.info("No hay productos disponibles por el momento o se está actualizando el inventario.")
         else:
-            # --- SECCIÓN DEL FORMULARIO DE PEDIDO ---
             st.write("### 📝 Configura tu Pedido")
             st.caption("Haz clic en cualquier producto para desplegar sus opciones de cantidad")
             
             pedido_usuario = {}
-            
             opciones_kilos = {
                 "1/4 kg (250g)": 0.25,
                 "1/2 kg (500g)": 0.50,
@@ -125,7 +134,6 @@ else:
             
             for prod in productos_disponibles:
                 nombre = prod.get("Producto", "Sin nombre")
-                
                 precio_raw = str(prod.get("Precio", 0)).replace("$", "").replace(",", "").strip()
                 try:
                     precio = float(precio_raw)
@@ -165,33 +173,22 @@ else:
 
             st.markdown("---")
             
-            # --- SECCIÓN DE TIPO DE ENTREGA Y PAGO ---
             st.write("### 🛵 Tipo de Entrega y Pago")
-            
             col_ent1, col_ent2 = st.columns([1, 1])
             with col_ent1:
-                tipo_entrega = st.radio(
-                    "Modalidad de entrega:",
-                    ["Entrega a domicilio", "Recoger en tienda"]
-                )
+                tipo_entrega = st.radio("Modalidad de entrega:", ["Entrega a domicilio", "Recoger en tienda"])
             
             COSTO_ENVIO = costo_envio_base if tipo_entrega == "Entrega a domicilio" else 0.0
             
             with col_ent2:
-                metodo_pago = st.selectbox(
-                    "Método de pago:",
-                    ["Efectivo", "Transferencia", "Tarjeta de Débito/Crédito"]
-                )
+                metodo_pago = st.selectbox("Método de pago:", ["Efectivo", "Transferencia", "Tarjeta de Débito/Crédito"])
 
-            # --- SECCIÓN: RESUMEN DEL PEDIDO EN PANTALLA ---
             st.write("### 🛒 Resumen de tu Compra")
-            
             if not pedido_usuario:
                 st.info("Aún no has agregado ningún producto a tu carrito.")
             else:
                 html_resumen = '<div class="resumen-box">'
                 subtotal_productos = 0.0
-                
                 for prod_nombre, detalle in pedido_usuario.items():
                     html_resumen += f"<p style='margin:5px 0; color:white;'>• <b>{prod_nombre}</b>: {detalle['texto_cant']} — <span style='color:#25D366;'>${detalle['subtotal']:,.2f}</span></p>"
                     subtotal_productos += detalle['subtotal']
@@ -207,12 +204,10 @@ else:
                 total_final = subtotal_productos + COSTO_ENVIO
                 html_resumen += f"<h4 style='margin:10px 0 0 0; color:white; text-align:right;'>Total Estimado: <span style='color:#ff4b4b; font-size:22px;'>${total_final:,.2f}</span></h4>"
                 html_resumen += '</div>'
-                
                 st.markdown(html_resumen, unsafe_allow_html=True)
 
             st.markdown("---")
             
-            # --- DATOS DE CLIENTE ---
             st.write("### 👤 Datos del Cliente")
             nombre_cliente = st.text_input("Nombre completo:")
             
@@ -225,7 +220,6 @@ else:
             
             st.markdown("<br>", unsafe_allow_html=True)
             
-            # --- PROCESO DE GENERACIÓN DEL PEDIDO ---
             if not nombre_cliente.strip():
                 st.warning("Por favor, ingresa tu nombre completo.")
             elif tipo_entrega == "Entrega a domicilio" and not direccion_cliente.strip():
@@ -233,8 +227,8 @@ else:
             elif not pedido_usuario:
                 st.info("Agrega productos para generar el botón de envío.")
             else:
-                # Construir el mensaje formateado de WhatsApp
                 texto_mensaje = f"🥩 *NUEVO PEDIDO - CARNICERÍA LA VENTANITA*\n\n"
+                texto_mensaje += f"📢 *Comisionista:* {comisionista_detectado}\n"  # <- AQUÍ SE AGREGA EL RASTREO AUTOMÁTICO
                 texto_mensaje += f"👤 *Cliente:* {nombre_cliente.strip()}\n"
                 texto_mensaje += f"🛵 *Modalidad:* {tipo_entrega}\n"
                 if tipo_entrega == "Entrega a domicilio":
@@ -244,7 +238,6 @@ else:
                     texto_mensaje += f"📝 *Notas:* {notas_adicionales.strip()}\n"
                 
                 texto_mensaje += f"\n🛒 *DETALLE DEL PEDIDO:*\n"
-                
                 subtotal_productos = 0.0
                 for prod_nombre, detalle in pedido_usuario.items():
                     texto_mensaje += f"• {prod_nombre}: *{detalle['texto_cant']}* (${detalle['subtotal']:,.2f})\n"
@@ -260,14 +253,19 @@ else:
                 
                 mensaje_codificado = urllib.parse.quote(texto_mensaje)
                 
-                # Modifica aquí tu número a 10 dígitos (Debe iniciar con 52 para México)
+                # RECUERDA PONER EL NÚMERO DE TU ESPOSA AQUÍ ABAJO
                 telefono_recibe = "525574977297"
-                
                 url_whatsapp = f"https://wa.me/{telefono_recibe}?text={mensaje_codificado}"
                 
                 st.write("### 🎉 ¡Pedido Listo!")
-                # Botón nativo optimizado para móviles
                 st.link_button("📱 ENVIAR PEDIDO POR WHATSAPP", url_whatsapp)
+                
+                st.markdown("---")
+                st.write("### 📢 ¡Únete a nuestra Comunidad!")
+                url_grupo = "https://chat.whatsapp.com/EycCM3OtpTF48GamCPzol5"
+                st.markdown('<div class="grupo-btn">', unsafe_allow_html=True)
+                st.link_button("✨ UNIRME AL GRUPO DE WHATSAPP", url_grupo)
+                st.markdown('</div>', unsafe_allow_html=True)
                 
     except Exception as e:
         st.error("Error al leer los datos de la hoja de cálculo.")
