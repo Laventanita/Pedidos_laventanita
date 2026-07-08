@@ -60,9 +60,11 @@ def enviar_a_telegram(mensaje):
             "chat_id": chat_id,
             "text": mensaje
         }
-        requests.post(url, json=payload)
+        # Forzamos una respuesta rápida de la API de Telegram
+        respuesta = requests.post(url, json=payload, timeout=5)
+        return respuesta.status_code == 200
     except Exception as e:
-        pass
+        return False
 
 # Función para conectar a Google Sheets
 def conectar_base_datos():
@@ -93,7 +95,6 @@ def conectar_base_datos():
 
 # Función para limpiar la pantalla y reiniciar la app
 def limpiar_pedido():
-    # Eliminamos las variables de control para resetear formularios y botones
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.rerun()
@@ -278,21 +279,18 @@ else:
                 
                 st.write("### 🎉 ¡Pedido Listo!")
                 
-                # Paso 1: Botón para procesar y enviar a Telegram
+                # Paso 1: Botón para registrar y mandar directo a Telegram
                 if st.button("🔄 1. CONFIRMAR REGISTRO DE PEDIDO"):
-                    estado_key = f"enviado_{nombre_cliente.strip().lower()}"
-                    if st.session_state.get(estado_key) is not True:
-                        enviar_a_telegram(texto_mensaje)
-                        st.session_state[estado_key] = True
+                    enviar_a_telegram(texto_mensaje)
                     st.session_state["mostrar_boton_wa"] = True
                 
-                # Paso 2: Botón de WhatsApp con autorefresh
+                # Paso 2: Botón de WhatsApp y limpieza posterior
                 if st.session_state.get("mostrar_boton_wa", False):
-                    st.success("¡Pedido enviado a Telegram con éxito!")
+                    st.success("¡Pedido registrado con éxito!")
                     
                     url_whatsapp = f"https://wa.me/{telefono_recibe}?text={mensaje_codificado}"
                     
-                    # Usamos st.link_button nativo que es más estable, y abajo un botón para concluir y limpiar
+                    # Botón nativo de WhatsApp
                     st.link_button("📱 2. ENVIAR POR WHATSAPP", url_whatsapp, type="primary")
                     
                     st.markdown("<br>", unsafe_allow_html=True)
