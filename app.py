@@ -224,10 +224,10 @@ else:
             
             lista_comisionistas = [
                 "Ninguno (Venta Directa)", 
-                "Papelería (Folleto)", 
-                "Carlos", 
                 "Ana", 
-                "Juan"
+                "Aurora", 
+                "Mary", 
+                "Chayo"
             ]
             comisionista_seleccionado = st.selectbox(
                 "Selecciona el nombre de la persona que te compartió la aplicación:",
